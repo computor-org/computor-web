@@ -5,109 +5,105 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
-interface NavItem {
+interface SubItem {
   id: string;
   label: string;
   path: string;
-  icon: string;
-  roles?: ('admin' | 'lecturer' | 'student')[];
 }
 
-const navigation: NavItem[] = [
+interface ViewNavItem {
+  id: string;
+  view: string; // 'student' | 'tutor' | 'lecturer'
+  label: string;
+  path: string;
+  icon: string;
+  subItems?: SubItem[];
+}
+
+// Navigation structure for each view
+const viewNavigation: ViewNavItem[] = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    path: '/dashboard',
-    icon: 'dashboard',
+    id: 'student-view',
+    view: 'student',
+    label: 'Student',
+    path: '/student',
+    icon: 'student',
+    subItems: [
+      { id: 'student-courses', label: 'Courses', path: '/student/courses' },
+      { id: 'student-submissions', label: 'Submissions', path: '/student/submissions' },
+    ],
   },
   {
-    id: 'courses',
-    label: 'Courses',
-    path: '/courses',
-    icon: 'book',
+    id: 'tutor-view',
+    view: 'tutor',
+    label: 'Tutor',
+    path: '/tutor',
+    icon: 'tutor',
+    subItems: [
+      { id: 'tutor-courses', label: 'Courses', path: '/tutor/courses' },
+      { id: 'tutor-students', label: 'Students', path: '/tutor/students' },
+      { id: 'tutor-submissions', label: 'Submissions', path: '/tutor/submissions' },
+      { id: 'tutor-grading', label: 'Grading', path: '/tutor/grading' },
+    ],
   },
   {
-    id: 'assignments',
-    label: 'Assignments',
-    path: '/assignments',
-    icon: 'assignment',
-  },
-  {
-    id: 'examples',
-    label: 'Examples',
-    path: '/examples',
-    icon: 'library',
-  },
-  {
-    id: 'users',
-    label: 'Users',
-    path: '/users',
-    icon: 'users',
-    roles: ['admin', 'lecturer'],
-  },
-  {
-    id: 'organizations',
-    label: 'Organizations',
-    path: '/organizations',
-    icon: 'building',
-    roles: ['admin'],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    path: '/settings',
-    icon: 'settings',
+    id: 'lecturer-view',
+    view: 'lecturer',
+    label: 'Lecturer',
+    path: '/lecturer',
+    icon: 'lecturer',
+    subItems: [
+      { id: 'lecturer-courses', label: 'Course Management', path: '/lecturer/courses' },
+      { id: 'lecturer-content', label: 'Course Contents', path: '/lecturer/content' },
+      { id: 'lecturer-students', label: 'Students', path: '/lecturer/students' },
+      { id: 'lecturer-grading', label: 'Grading Overview', path: '/lecturer/grading' },
+      { id: 'lecturer-analytics', label: 'Analytics', path: '/lecturer/analytics' },
+    ],
   },
 ];
 
 const icons: Record<string, React.ReactElement> = {
-  dashboard: (
+  student: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
     </svg>
   ),
-  book: (
-    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  ),
-  assignment: (
-    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  library: (
-    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-    </svg>
-  ),
-  users: (
+  tutor: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   ),
-  building: (
+  lecturer: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   ),
-  settings: (
-    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  chevronDown: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   ),
 };
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, views } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>({});
 
-  const filteredNavigation = navigation.filter((item) => {
-    if (!item.roles) return true;
-    return item.roles.includes(user?.role || 'student');
-  });
+  // Filter navigation based on user's available views
+  const availableViews = viewNavigation.filter((item) =>
+    views.includes(item.view)
+  );
+
+  const toggleView = (viewId: string) => {
+    setExpandedViews(prev => ({
+      ...prev,
+      [viewId]: !prev[viewId]
+    }));
+  };
 
   return (
     <aside
@@ -143,27 +139,73 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {filteredNavigation.map((item) => {
-          const isActive = pathname === item.path;
+        {availableViews.map((viewItem) => {
+          const isExpanded = expandedViews[viewItem.id];
+          const isViewActive = pathname.startsWith(viewItem.path);
 
           return (
-            <Link
-              key={item.id}
-              href={item.path}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              title={collapsed ? item.label : undefined}
-            >
-              <span className={isActive ? 'text-blue-600' : 'text-gray-500'}>
-                {icons[item.icon]}
-              </span>
-              {!collapsed && (
-                <span className="text-sm font-medium">{item.label}</span>
+            <div key={viewItem.id} className="space-y-1">
+              {/* Main View Item */}
+              <div className="flex items-center">
+                <Link
+                  href={viewItem.path}
+                  className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                    pathname === viewItem.path
+                      ? 'bg-blue-50 text-blue-600'
+                      : isViewActive
+                      ? 'bg-blue-50/50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={collapsed ? viewItem.label : undefined}
+                >
+                  <span className={pathname === viewItem.path || isViewActive ? 'text-blue-600' : 'text-gray-500'}>
+                    {icons[viewItem.icon]}
+                  </span>
+                  {!collapsed && (
+                    <span className="text-sm font-medium">{viewItem.label}</span>
+                  )}
+                </Link>
+
+                {/* Expand/Collapse Button */}
+                {!collapsed && viewItem.subItems && viewItem.subItems.length > 0 && (
+                  <button
+                    onClick={() => toggleView(viewItem.id)}
+                    className="p-2 hover:bg-gray-100 rounded transition-colors"
+                  >
+                    <span
+                      className={`transition-transform inline-block ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                    >
+                      {icons.chevronDown}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Sub Items */}
+              {!collapsed && isExpanded && viewItem.subItems && (
+                <div className="ml-8 space-y-1">
+                  {viewItem.subItems.map((subItem) => {
+                    const isSubActive = pathname === subItem.path;
+
+                    return (
+                      <Link
+                        key={subItem.id}
+                        href={subItem.path}
+                        className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isSubActive
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {subItem.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               )}
-            </Link>
+            </div>
           );
         })}
       </nav>

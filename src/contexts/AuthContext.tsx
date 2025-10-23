@@ -7,6 +7,7 @@ import { AuthService } from '../services/authService';
 
 interface AuthContextType {
   user: AuthUser | null;
+  views: string[];
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<AuthResponse>;
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [views, setViews] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Initialize auth services
@@ -34,14 +36,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const ssoUser = ssoAuthService.getCurrentUser();
       if (ssoUser) {
         setUser(ssoUser);
+        // SSO doesn't have views method, use auth service
+        const authUser = authService.getCurrentUser();
+        if (authUser) {
+          setViews(authService.getCurrentViews());
+        }
         setIsLoading(false);
         return;
       }
 
-      // Fall back to mock auth
-      const mockUser = authService.getCurrentUser();
-      if (mockUser) {
-        setUser(mockUser);
+      // Fall back to auth service
+      const authUser = authService.getCurrentUser();
+      if (authUser) {
+        setUser(authUser);
+        setViews(authService.getCurrentViews());
       }
 
       setIsLoading(false);
@@ -57,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.success && response.user) {
         setUser(response.user);
+        setViews(authService.getCurrentViews());
       }
 
       return response;
@@ -80,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(null);
+      setViews([]);
     } finally {
       setIsLoading(false);
     }
@@ -93,21 +103,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         response = await ssoAuthService.refreshSession();
       } else if (authService.isAuthenticated()) {
         response = await authService.refreshSession();
+        if (response?.success) {
+          setViews(authService.getCurrentViews());
+        }
       }
 
       if (response?.success && response.user) {
         setUser(response.user);
       } else {
         setUser(null);
+        setViews([]);
       }
     } catch (error) {
       console.error('Session refresh failed:', error);
       setUser(null);
+      setViews([]);
     }
   };
 
   const value: AuthContextType = {
     user,
+    views,
     isAuthenticated: !!user,
     isLoading,
     login,

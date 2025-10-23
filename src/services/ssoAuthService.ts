@@ -1,7 +1,7 @@
 import { LoginCredentials, AuthResponse, AuthUser } from '../types/auth';
 import { ISSOAuthProvider } from '../interfaces/IAuthProvider';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
  * SSO Authentication Service
@@ -89,7 +89,7 @@ export class SSOAuthService implements ISSOAuthProvider {
     try {
       // Fetch user info - cookies are sent automatically
       // No need to pass tokens manually!
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      const response = await fetch(`${API_BASE_URL}/user`, {
         credentials: 'include', // Send cookies
       });
 
@@ -178,7 +178,7 @@ export class SSOAuthService implements ISSOAuthProvider {
   async logout(): Promise<void> {
     try {
       // Notify backend to clear cookies
-      await fetch(`${API_BASE_URL}/auth/keycloak/logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include', // Send cookies for logout
       });
@@ -212,7 +212,7 @@ export class SSOAuthService implements ISSOAuthProvider {
       }
 
       // Fetch updated user info
-      const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+      const userResponse = await fetch(`${API_BASE_URL}/user`, {
         credentials: 'include',
       });
 
@@ -266,15 +266,27 @@ export class SSOAuthService implements ISSOAuthProvider {
   }
 
   /**
-   * Get available SSO providers
+   * Get available SSO providers from backend
    */
-  async getProviders(): Promise<Array<{ name: string; display_name: string }>> {
+  async getProviders(): Promise<Array<{ name: string; display_name: string; type: string; enabled: boolean }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/providers`);
+      const response = await fetch(`${API_BASE_URL}/auth/providers`, {
+        credentials: 'include',
+      });
+
       if (!response.ok) {
         throw new Error('Failed to fetch providers');
       }
-      return await response.json();
+
+      const providers = await response.json();
+
+      // Map ProviderInfo to simplified format
+      return providers.map((p: any) => ({
+        name: p.name,
+        display_name: p.display_name,
+        type: p.type,
+        enabled: p.enabled,
+      }));
     } catch (error) {
       console.error('Failed to fetch SSO providers:', error);
       return [];

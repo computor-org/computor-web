@@ -80,27 +80,7 @@ export default function LoginPage() {
             </div>
 
             {/* SSO Login */}
-            <button
-              onClick={handleSSOLogin}
-              className="w-full mb-6 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center space-x-2"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-              <span>Sign in with SSO (Keycloak)</span>
-            </button>
-
-            {/* Divider */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">Or continue with</span>
-              </div>
-            </div>
-
-            {/* Mock Login Form (Development) */}
+            {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -118,7 +98,7 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="admin"
+                  placeholder="Enter your username"
                   required
                 />
               </div>
@@ -147,15 +127,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-medium text-gray-700 mb-2">Demo Credentials:</p>
-              <div className="space-y-1 text-xs text-gray-600">
-                <p><strong>Admin:</strong> admin / admin123</p>
-                <p><strong>Lecturer:</strong> lecturer / lecturer123</p>
-                <p><strong>Student:</strong> student / student123</p>
-              </div>
-            </div>
           </div>
 
           {/* Back to Home */}
