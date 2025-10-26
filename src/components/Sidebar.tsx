@@ -210,12 +210,22 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Footer - Version */}
-      {!collapsed && (
-        <div className="p-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">Computor v1.0.0</p>
-        </div>
-      )}
+      {/* Footer - Logo & Version */}
+      <div className="p-4 border-t border-gray-200">
+        {!collapsed ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-center space-x-2">
+              <img src="/computor_logo.png" alt="Computor" className="h-6 w-6" />
+              <span className="text-sm font-semibold text-gray-700">Computor</span>
+            </div>
+            <p className="text-xs text-gray-500 text-center">v1.0.0</p>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <img src="/computor_logo.png" alt="Computor" className="h-8 w-8" />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
