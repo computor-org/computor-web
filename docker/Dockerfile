@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies with clean install for reproducible builds
-RUN npm ci --omit=dev && \
+# Install all dependencies (including dev deps needed for build)
+RUN npm ci && \
     npm cache clean --force
 
 # Stage 2: Builder
