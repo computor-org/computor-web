@@ -1,15 +1,44 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function TopBar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [courseTitle, setCourseTitle] = useState<string | null>(null);
+
+  // Detect if we're in a course context
+  const courseMatch = pathname.match(/^\/courses\/([^/]+)/);
+  const currentCourseId = courseMatch ? courseMatch[1] : null;
+
+  // Fetch course title when in course context
+  useEffect(() => {
+    if (currentCourseId) {
+      async function fetchCourseTitle() {
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/courses/${currentCourseId}`,
+            { credentials: 'include' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setCourseTitle(data.title || 'Untitled Course');
+          }
+        } catch (error) {
+          console.error('Failed to fetch course title:', error);
+        }
+      }
+      fetchCourseTitle();
+    } else {
+      setCourseTitle(null);
+    }
+  }, [currentCourseId]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -43,8 +72,14 @@ export default function TopBar() {
         <h1 className="text-xl font-bold text-gray-900">Computor</h1>
       </Link>
 
-      {/* Right Side - User Menu */}
+      {/* Right Side - Course Title & User Menu */}
       <div className="flex items-center space-x-4">
+        {courseTitle && (
+          <>
+            <h2 className="text-lg font-medium text-gray-700">{courseTitle}</h2>
+            <div className="h-6 w-px bg-gray-300"></div>
+          </>
+        )}
         {/* Notifications Icon (Placeholder) */}
         <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors relative">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

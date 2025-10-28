@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -94,10 +94,36 @@ export default function Sidebar() {
   const { user, views } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>({});
+  const [courseViews, setCourseViews] = useState<string[]>([]);
 
   // Detect if we're in a course context
   const courseMatch = pathname.match(/^\/courses\/([^/]+)/);
   const currentCourseId = courseMatch ? courseMatch[1] : null;
+
+  // Fetch course-specific views when in course context
+  useEffect(() => {
+    if (currentCourseId) {
+      async function fetchCourseViews() {
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/user/views/${currentCourseId}`,
+            { credentials: 'include' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setCourseViews(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch course views:', error);
+          // Fallback to global views if course-specific fetch fails
+          setCourseViews(views);
+        }
+      }
+      fetchCourseViews();
+    } else {
+      setCourseViews([]);
+    }
+  }, [currentCourseId, views]);
 
   const toggleView = (viewId: string) => {
     setExpandedViews(prev => ({
@@ -109,8 +135,10 @@ export default function Sidebar() {
   // If we're in a course context, show view-based navigation
   if (currentCourseId) {
     const viewNavigation = getViewNavigation(currentCourseId);
+    // Use course-specific views if available, otherwise fall back to global views
+    const activeViews = courseViews.length > 0 ? courseViews : views;
     const availableViews = viewNavigation.filter((item) =>
-      views.includes(item.view)
+      activeViews.includes(item.view)
     );
 
     return (
