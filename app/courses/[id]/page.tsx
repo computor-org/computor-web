@@ -10,22 +10,34 @@ export default function CoursePage() {
   const params = useParams();
   const courseId = params.id as string;
   const [course, setCourse] = useState<CourseGet | null>(null);
+  const [courseViews, setCourseViews] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchCourse() {
+    async function fetchCourseData() {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/${courseId}`, {
+        // Fetch course details
+        const courseResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/${courseId}`, {
           credentials: 'include',
         });
 
-        if (!response.ok) {
+        if (!courseResponse.ok) {
           throw new Error('Failed to fetch course');
         }
 
-        const data = await response.json();
-        setCourse(data);
+        const courseData = await courseResponse.json();
+        setCourse(courseData);
+
+        // Fetch course-specific views
+        const viewsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/views/${courseId}`, {
+          credentials: 'include',
+        });
+
+        if (viewsResponse.ok) {
+          const viewsData = await viewsResponse.json();
+          setCourseViews(viewsData);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -33,7 +45,7 @@ export default function CoursePage() {
       }
     }
 
-    fetchCourse();
+    fetchCourseData();
   }, [courseId]);
 
   if (loading) {
@@ -145,56 +157,64 @@ export default function CoursePage() {
         </div>
 
         {/* Quick Actions - Based on available views */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Access</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              href={`/courses/${courseId}/student`}
-              className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-            >
-              <div className="flex items-center space-x-3">
-                <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
-                <div>
-                  <h3 className="font-medium text-gray-900">Student View</h3>
-                  <p className="text-xs text-gray-500">Course contents & assignments</p>
-                </div>
-              </div>
-            </Link>
+        {courseViews.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Access</h2>
+            <div className={`grid grid-cols-1 md:grid-cols-${courseViews.length} gap-4`}>
+              {courseViews.includes('student') && (
+                <Link
+                  href={`/courses/${courseId}/student`}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                >
+                  <div className="flex items-center space-x-3">
+                    <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    </svg>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Student View</h3>
+                      <p className="text-xs text-gray-500">Course contents & assignments</p>
+                    </div>
+                  </div>
+                </Link>
+              )}
 
-            <Link
-              href={`/courses/${courseId}/tutor`}
-              className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-            >
-              <div className="flex items-center space-x-3">
-                <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <div>
-                  <h3 className="font-medium text-gray-900">Tutor View</h3>
-                  <p className="text-xs text-gray-500">Manage students & grading</p>
-                </div>
-              </div>
-            </Link>
+              {courseViews.includes('tutor') && (
+                <Link
+                  href={`/courses/${courseId}/tutor`}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                >
+                  <div className="flex items-center space-x-3">
+                    <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Tutor View</h3>
+                      <p className="text-xs text-gray-500">Manage students & grading</p>
+                    </div>
+                  </div>
+                </Link>
+              )}
 
-            <Link
-              href={`/courses/${courseId}/lecturer`}
-              className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-            >
-              <div className="flex items-center space-x-3">
-                <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <div>
-                  <h3 className="font-medium text-gray-900">Lecturer View</h3>
-                  <p className="text-xs text-gray-500">Course management & analytics</p>
-                </div>
-              </div>
-            </Link>
+              {courseViews.includes('lecturer') && (
+                <Link
+                  href={`/courses/${courseId}/lecturer`}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                >
+                  <div className="flex items-center space-x-3">
+                    <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Lecturer View</h3>
+                      <p className="text-xs text-gray-500">Course management & analytics</p>
+                    </div>
+                  </div>
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </AuthenticatedLayout>
   );
