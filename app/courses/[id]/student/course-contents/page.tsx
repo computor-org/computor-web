@@ -15,7 +15,7 @@ interface TreeNode {
   isLeaf: boolean;
 }
 
-export default function StudentAssignmentsPage() {
+export default function StudentCourseContentsPage() {
   const params = useParams();
   const courseId = params.id as string;
   const [courseContents, setCourseContents] = useState<CourseContentStudentList[]>([]);
@@ -163,35 +163,68 @@ export default function StudentAssignmentsPage() {
               {node.content?.title || node.label}
             </span>
 
-            {/* Assignment Info - Only for assignments, not units */}
-            {isAssignment && node.content && (
+            {/* Content Info - Different for units vs assignments */}
+            {node.content && (
               <div className="flex items-center space-x-4 ml-4">
-                {/* Submission Status */}
-                {node.content.submitted ? (
-                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
-                    Submitted
-                  </span>
-                ) : (
-                  <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-700 rounded">
-                    Not Submitted
-                  </span>
-                )}
+                {isUnit ? (
+                  // Unit Info
+                  <>
+                    <span className="text-sm text-gray-500">
+                      {node.children.filter(c => c.content?.course_content_kind_id === 'assignment').length} assignments
+                    </span>
+                    <Link
+                      href={`/courses/${courseId}/student/course-contents/${node.content.id}`}
+                      className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View
+                    </Link>
+                  </>
+                ) : isAssignment ? (
+                  // Assignment Info
+                  <>
+                    {/* Submission Status */}
+                    {node.content.submitted ? (
+                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
+                        Submitted
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-700 rounded">
+                        Not Submitted
+                      </span>
+                    )}
 
-                {/* Result */}
-                {node.content.result && (
-                  <span className="text-sm text-gray-600">
-                    Result: {(node.content.result.result || 0).toFixed(1)}%
-                  </span>
-                )}
+                    {/* Result */}
+                    {node.content.result ? (
+                      <span className={`text-sm font-medium ${
+                        (node.content.result.result || 0) >= 50 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {(node.content.result.result || 0).toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">No results</span>
+                    )}
 
-                {/* View Button */}
-                <Link
-                  href={`/courses/${courseId}/student/assignments/${node.content.id}`}
-                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View
-                </Link>
+                    {/* Test Runs */}
+                    <span className="text-sm text-gray-500">
+                      {node.content.result_count} test{node.content.result_count !== 1 ? 's' : ''}
+                    </span>
+
+                    {/* Submissions */}
+                    <span className="text-sm text-gray-500">
+                      {node.content.submission_count} submission{node.content.submission_count !== 1 ? 's' : ''}
+                    </span>
+
+                    {/* View Button */}
+                    <Link
+                      href={`/courses/${courseId}/student/course-contents/${node.content.id}`}
+                      className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View
+                    </Link>
+                  </>
+                ) : null}
               </div>
             )}
           </div>
@@ -238,10 +271,10 @@ export default function StudentAssignmentsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Course Contents</h1>
             <p className="mt-2 text-gray-600">
-              {courseContents.filter(c => c.course_content_kind_id === 'assignment').length} assignment
-              {courseContents.filter(c => c.course_content_kind_id === 'assignment').length !== 1 ? 's' : ''} available
+              {courseContents.filter(c => c.course_content_kind_id === 'unit').length} units · {' '}
+              {courseContents.filter(c => c.course_content_kind_id === 'assignment').length} assignments
             </p>
           </div>
         </div>

@@ -29,7 +29,7 @@ const getViewNavigation = (courseId: string): ViewNavItem[] => [
     path: `/courses/${courseId}/student`,
     icon: 'student',
     subItems: [
-      { id: 'student-assignments', label: 'Assignments', path: `/courses/${courseId}/student/assignments` },
+      { id: 'student-course-contents', label: 'Course Contents', path: `/courses/${courseId}/student/course-contents` },
     ],
   },
   {
