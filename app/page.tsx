@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../src/contexts/AuthContext';
 
 export default function Home() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
@@ -12,12 +22,29 @@ export default function Home() {
             <img src="/computor_logo.png" alt="Computor" className="h-10 w-10" />
             <h1 className="text-2xl font-bold text-gray-900">Computor</h1>
           </div>
-          <Link
-            href="/login"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Sign In
-          </Link>
+          {user ? (
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 text-blue-600 hover:text-blue-700 transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-white text-red-600 border-2 border-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </header>
 

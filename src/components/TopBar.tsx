@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function TopBar() {
@@ -50,12 +51,10 @@ export default function TopBar() {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-40">
       {/* Logo / Title */}
-      <div className="flex items-center space-x-3">
-        <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
+      <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer">
+        <img src="/computor_logo.png" alt="Computor" className="h-8 w-8" />
         <h1 className="text-xl font-bold text-gray-900">Computor</h1>
-      </div>
+      </Link>
 
       {/* Right Side - User Menu */}
       <div className="flex items-center space-x-4">
