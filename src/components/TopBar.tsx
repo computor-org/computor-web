@@ -35,19 +35,6 @@ export default function TopBar() {
     return (first + last).toUpperCase() || user.username.charAt(0).toUpperCase();
   };
 
-  const getRoleBadgeColor = () => {
-    switch (user?.role) {
-      case 'admin':
-        return 'bg-purple-100 text-purple-700';
-      case 'lecturer':
-        return 'bg-blue-100 text-blue-700';
-      case 'student':
-        return 'bg-green-100 text-green-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-40">
       {/* Logo / Title */}
@@ -82,7 +69,6 @@ export default function TopBar() {
               <p className="text-sm font-medium text-gray-900">
                 {user?.givenName} {user?.familyName}
               </p>
-              <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
             </div>
             {/* Chevron */}
             <svg
@@ -104,11 +90,6 @@ export default function TopBar() {
                   {user?.givenName} {user?.familyName}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
-                <div className="mt-2">
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor()}`}>
-                    {user?.role}
-                  </span>
-                </div>
               </div>
 
               {/* Menu Items */}
