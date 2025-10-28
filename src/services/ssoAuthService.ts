@@ -23,8 +23,14 @@ export class SSOAuthService implements ISSOAuthProvider {
 
   /**
    * Load user data from sessionStorage
+   * Only runs on client-side (browser)
    */
   private loadUserFromStorage(): void {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const storedUser = sessionStorage.getItem(this.USER_KEY);
       if (storedUser) {
@@ -38,8 +44,15 @@ export class SSOAuthService implements ISSOAuthProvider {
 
   /**
    * Save user data to sessionStorage (NOT tokens!)
+   * Only runs on client-side (browser)
    */
   private saveUserToStorage(user: AuthUser): void {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') {
+      this.currentUser = user;
+      return;
+    }
+
     try {
       sessionStorage.setItem(this.USER_KEY, JSON.stringify(user));
       this.currentUser = user;
@@ -251,16 +264,26 @@ export class SSOAuthService implements ISSOAuthProvider {
   /**
    * Clear local session data
    * Does NOT clear HttpOnly cookies (only backend can do that)
+   * Only runs on client-side (browser)
    */
   clearSession(): void {
-    sessionStorage.removeItem(this.USER_KEY);
+    // Check if we're in the browser (not SSR)
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(this.USER_KEY);
+    }
     this.currentUser = null;
   }
 
   /**
    * Check if current route is an SSO callback
+   * Only runs on client-side (browser)
    */
   isSSOCallback(): boolean {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
     const path = window.location.pathname;
     return path === '/auth/success' || path === '/auth/callback';
   }

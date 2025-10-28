@@ -26,8 +26,14 @@ export class AuthService implements IAuthProviderWithLogin {
 
   /**
    * Load user data from sessionStorage
+   * Only runs on client-side (browser)
    */
   private loadUserFromStorage(): void {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const storedUser = sessionStorage.getItem(this.USER_KEY);
       const storedViews = sessionStorage.getItem(this.VIEWS_KEY);
@@ -48,8 +54,16 @@ export class AuthService implements IAuthProviderWithLogin {
 
   /**
    * Save user data to sessionStorage (NOT tokens!)
+   * Only runs on client-side (browser)
    */
   private saveUserToStorage(user: AuthUser, views: string[]): void {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') {
+      this.currentUser = user;
+      this.currentViews = views;
+      return;
+    }
+
     try {
       sessionStorage.setItem(this.USER_KEY, JSON.stringify(user));
       sessionStorage.setItem(this.VIEWS_KEY, JSON.stringify(views));
@@ -335,10 +349,14 @@ export class AuthService implements IAuthProviderWithLogin {
   /**
    * Clear local session data
    * Does NOT clear HttpOnly cookies (only backend can do that)
+   * Only runs on client-side (browser)
    */
   clearSession(): void {
-    sessionStorage.removeItem(this.USER_KEY);
-    sessionStorage.removeItem(this.VIEWS_KEY);
+    // Check if we're in the browser (not SSR)
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(this.USER_KEY);
+      sessionStorage.removeItem(this.VIEWS_KEY);
+    }
     this.currentUser = null;
     this.currentViews = [];
   }
