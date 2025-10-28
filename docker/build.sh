@@ -15,11 +15,11 @@
 #   --tag <tag>       Override image tag (default: from .env or 'latest')
 #   --help            Show this help message
 #
-# Environment Variables (from .env.local or .env):
+# Environment Variables (from .env):
 #   DOCKER_IMAGE_NAME       Docker image name (default: computor-web)
 #   DOCKER_IMAGE_TAG        Docker image tag (default: latest)
 #   DOCKER_REGISTRY         Docker registry URL (optional)
-#   NEXT_PUBLIC_API_URL     Backend API URL for build
+#   NEXT_PUBLIC_API_URL     Backend API URL (baked into build)
 ###############################################################################
 
 set -e  # Exit on error
@@ -66,11 +66,11 @@ Options:
     --tag <tag>       Override image tag (default: from .env or 'latest')
     --help            Show this help message
 
-Environment Variables (from .env.local or .env):
+Environment Variables (from .env):
     DOCKER_IMAGE_NAME       Docker image name (default: computor-web)
     DOCKER_IMAGE_TAG        Docker image tag (default: latest)
     DOCKER_REGISTRY         Docker registry URL (optional)
-    NEXT_PUBLIC_API_URL     Backend API URL for build
+    NEXT_PUBLIC_API_URL     Backend API URL (baked into build)
 
 Examples:
     # Basic build
@@ -124,19 +124,16 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 print_info "Project root: $PROJECT_ROOT"
 
-# Load environment variables from .env.local or .env
-if [ -f "$PROJECT_ROOT/.env.local" ]; then
-    print_info "Loading environment from .env.local"
-    set -a
-    source "$PROJECT_ROOT/.env.local"
-    set +a
-elif [ -f "$PROJECT_ROOT/.env" ]; then
+# Load environment variables from .env only
+if [ -f "$PROJECT_ROOT/.env" ]; then
     print_info "Loading environment from .env"
     set -a
     source "$PROJECT_ROOT/.env"
     set +a
 else
-    print_warning "No .env.local or .env file found, using defaults"
+    print_error ".env file not found at $PROJECT_ROOT/.env"
+    print_error "Please create a .env file with required configuration"
+    exit 1
 fi
 
 # Set default values if not provided
