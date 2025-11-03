@@ -144,7 +144,7 @@ export default function AssignmentDetailPage() {
               </div>
               <div className="flex items-center space-x-3">
                 <a
-                  href={assignment.submission_group.repository.web_url}
+                  href={assignment.submission_group.repository.web_url || undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
