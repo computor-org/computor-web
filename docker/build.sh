@@ -35,6 +35,7 @@ NC='\033[0m' # No Color
 NO_CACHE=""
 PUSH_IMAGE=false
 OVERRIDE_TAG=""
+PLATFORM="linux/amd64"  # Default to AMD64 for compatibility
 
 # Function to print colored output
 print_info() {
@@ -64,6 +65,7 @@ Options:
     --no-cache        Build without using Docker cache
     --push            Push image to registry after build
     --tag <tag>       Override image tag (default: from .env or 'latest')
+    --platform <plat> Platform(s) to build for (default: linux/amd64,linux/arm64)
     --help            Show this help message
 
 Environment Variables (from .env):
@@ -104,6 +106,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --tag)
             OVERRIDE_TAG="$2"
+            shift 2
+            ;;
+        --platform)
+            PLATFORM="$2"
             shift 2
             ;;
         --help)
@@ -163,6 +169,7 @@ print_info "Image Tag:      $DOCKER_IMAGE_TAG"
 print_info "Full Image:     $FULL_IMAGE_NAME"
 print_info "Registry:       ${DOCKER_REGISTRY:-<none (local build)>}"
 print_info "API URL:        $NEXT_PUBLIC_API_URL"
+print_info "Platform(s):    $PLATFORM"
 print_info "Cache:          ${NO_CACHE:+disabled}"
 print_info "Push after:     ${PUSH_IMAGE}"
 print_info "========================================"
@@ -186,12 +193,50 @@ echo ""
 
 BUILD_START=$(date +%s)
 
-docker build \
-    $NO_CACHE \
-    -f "$SCRIPT_DIR/Dockerfile" \
-    -t "$FULL_IMAGE_NAME" \
-    --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
-    "$PROJECT_ROOT"
+# Check if building for multiple platforms (requires buildx)
+if [[ "$PLATFORM" == *","* ]]; then
+    if [ "$PUSH_IMAGE" = false ]; then
+        print_error "Multi-platform builds require --push flag"
+        print_error "Multi-platform images cannot be loaded to local Docker"
+        exit 1
+    fi
+
+    if [ -z "$DOCKER_REGISTRY" ]; then
+        print_error "Multi-platform builds require DOCKER_REGISTRY to be set in .env"
+        exit 1
+    fi
+
+    # Check if buildx builder exists, create if not
+    print_info "Checking docker buildx setup..."
+
+    if ! docker buildx inspect multiplatform &>/dev/null; then
+        print_info "Creating buildx builder 'multiplatform'..."
+        docker buildx create --name multiplatform --driver docker-container --bootstrap --use
+    else
+        print_info "Using existing buildx builder 'multiplatform'"
+        docker buildx use multiplatform
+    fi
+
+    # Use buildx for multi-platform
+    print_info "Building multi-platform image with docker buildx"
+    docker buildx build \
+        $NO_CACHE \
+        --platform "$PLATFORM" \
+        -f "$SCRIPT_DIR/Dockerfile" \
+        -t "$FULL_IMAGE_NAME" \
+        --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+        --push \
+        "$PROJECT_ROOT"
+else
+    # Regular build for single platform
+    docker build \
+        $NO_CACHE \
+        --platform "$PLATFORM" \
+        -f "$SCRIPT_DIR/Dockerfile" \
+        -t "$FULL_IMAGE_NAME" \
+        --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+        "$PROJECT_ROOT"
+fi
 
 BUILD_END=$(date +%s)
 BUILD_DURATION=$((BUILD_END - BUILD_START))
@@ -211,8 +256,8 @@ if [ "$DOCKER_IMAGE_TAG" != "latest" ]; then
     docker tag "$FULL_IMAGE_NAME" "$LATEST_TAG"
 fi
 
-# Push to registry if requested
-if [ "$PUSH_IMAGE" = true ]; then
+# Push to registry if requested (skip if already pushed by buildx)
+if [ "$PUSH_IMAGE" = true ] && [[ "$PLATFORM" != *","* ]]; then
     if [ -z "$DOCKER_REGISTRY" ]; then
         print_error "Cannot push: DOCKER_REGISTRY is not set in .env"
         exit 1
@@ -228,6 +273,8 @@ if [ "$PUSH_IMAGE" = true ]; then
     fi
 
     print_success "Image pushed to registry"
+elif [[ "$PLATFORM" == *","* ]]; then
+    print_success "Multi-platform image already pushed to registry"
 fi
 
 # Print next steps
