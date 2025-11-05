@@ -310,11 +310,25 @@ export class AuthService implements IAuthProviderWithLogin {
 
   /**
    * Refresh authentication session
-   * Backend will refresh HttpOnly cookies automatically
+   * Calls /auth/refresh to get a new access token using the refresh token
    */
   async refreshSession(): Promise<AuthResponse> {
     try {
-      // Fetch user info and views (if cookies are still valid)
+      // Call the refresh endpoint to get a new access token
+      const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Send refresh token cookie
+      });
+
+      if (!refreshResponse.ok) {
+        this.clearSession();
+        return {
+          success: false,
+          error: 'Session expired',
+        };
+      }
+
+      // After successful refresh, fetch updated user info and views
       const [userInfo, views] = await Promise.all([
         this.fetchUserInfo(),
         this.fetchUserViews(),
@@ -324,7 +338,7 @@ export class AuthService implements IAuthProviderWithLogin {
         this.clearSession();
         return {
           success: false,
-          error: 'Session expired',
+          error: 'Failed to fetch user information',
         };
       }
 
