@@ -52,10 +52,8 @@ export default function StudentCourseContentsPage() {
     const root: TreeNode[] = [];
     const nodeMap = new Map<string, TreeNode>();
 
-    // Sort by path to ensure parents come before children
-    const sortedContents = [...contents].sort((a, b) => a.path.localeCompare(b.path));
-
-    sortedContents.forEach((content) => {
+    // First pass: Build the tree structure from Ltree paths
+    contents.forEach((content) => {
       const pathParts = content.path.split('.');
       let currentPath = '';
 
@@ -89,6 +87,23 @@ export default function StudentCourseContentsPage() {
         }
       });
     });
+
+    // Second pass: Sort children by position at each level
+    const sortChildren = (nodes: TreeNode[]) => {
+      nodes.sort((a, b) => {
+        const posA = a.content?.position ?? 0;
+        const posB = b.content?.position ?? 0;
+        return posA - posB;
+      });
+
+      nodes.forEach(node => {
+        if (node.children.length > 0) {
+          sortChildren(node.children);
+        }
+      });
+    };
+
+    sortChildren(root);
 
     return root;
   };
