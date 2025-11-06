@@ -9,6 +9,26 @@ export default function DashboardPage() {
   return (
     <AuthenticatedLayout>
       <div className="space-y-6">
+        {/* Under Construction Banner */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-amber-900">
+                Under Construction
+              </h3>
+              <p className="mt-1 text-sm text-amber-700">
+                This dashboard is currently showing mockup data for demonstration purposes.
+                In the future, it will display your actual course statistics, assignments, and activity.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Welcome Header */}
         <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -21,7 +41,10 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow p-6 border border-gray-200 relative">
+            <div className="absolute top-2 right-2">
+              <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">Demo</span>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Courses</p>
@@ -35,7 +58,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow p-6 border border-gray-200 relative">
+            <div className="absolute top-2 right-2">
+              <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">Demo</span>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Assignments</p>
@@ -49,7 +75,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow p-6 border border-gray-200 relative">
+            <div className="absolute top-2 right-2">
+              <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">Demo</span>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
@@ -63,7 +92,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow p-6 border border-gray-200 relative">
+            <div className="absolute top-2 right-2">
+              <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">Demo</span>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Average Grade</p>
