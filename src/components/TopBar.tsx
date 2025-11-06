@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '../utils/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function TopBar() {
@@ -19,12 +20,16 @@ export default function TopBar() {
 
   // Fetch course title when in course context
   useEffect(() => {
+    // Only fetch if user is authenticated
+    if (!user) {
+      return;
+    }
+
     if (currentCourseId) {
       async function fetchCourseTitle() {
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/courses/${currentCourseId}`,
-            { credentials: 'include' }
+          const response = await apiFetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/courses/${currentCourseId}`
           );
           if (response.ok) {
             const data = await response.json();
@@ -38,7 +43,7 @@ export default function TopBar() {
     } else {
       setCourseTitle(null);
     }
-  }, [currentCourseId]);
+  }, [currentCourseId, user]);
 
   // Close menu when clicking outside
   useEffect(() => {

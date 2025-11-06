@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/src/utils/apiClient';
+import { useAuth } from '@/src/contexts/AuthContext';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import type { CourseGet } from 'types/generated';
 
 export default function CoursePage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const params = useParams();
   const courseId = params.id as string;
   const [course, setCourse] = useState<CourseGet | null>(null);
@@ -15,12 +18,15 @@ export default function CoursePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Don't fetch until authentication is confirmed
+    if (authLoading || !isAuthenticated) {
+      return;
+    }
+
     async function fetchCourseData() {
       try {
         // Fetch course details
-        const courseResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/${courseId}`, {
-          credentials: 'include',
-        });
+        const courseResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/${courseId}`);
 
         if (!courseResponse.ok) {
           throw new Error('Failed to fetch course');
@@ -30,9 +36,7 @@ export default function CoursePage() {
         setCourse(courseData);
 
         // Fetch course-specific views
-        const viewsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/views/${courseId}`, {
-          credentials: 'include',
-        });
+        const viewsResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/user/views/${courseId}`);
 
         if (viewsResponse.ok) {
           const viewsData = await viewsResponse.json();
@@ -46,7 +50,7 @@ export default function CoursePage() {
     }
 
     fetchCourseData();
-  }, [courseId]);
+  }, [courseId, authLoading, isAuthenticated]);
 
   if (loading) {
     return (

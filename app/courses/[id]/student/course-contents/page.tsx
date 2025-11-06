@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/src/utils/apiClient';
+import { useAuth } from '@/src/contexts/AuthContext';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import type { CourseContentStudentList } from 'types/generated';
 
@@ -16,6 +18,7 @@ interface TreeNode {
 }
 
 export default function StudentCourseContentsPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const params = useParams();
   const courseId = params.id as string;
   const [courseContents, setCourseContents] = useState<CourseContentStudentList[]>([]);
@@ -24,11 +27,15 @@ export default function StudentCourseContentsPage() {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // Don't fetch until authentication is confirmed
+    if (authLoading || !isAuthenticated) {
+      return;
+    }
+
     async function fetchCourseContents() {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/students/course-contents?course_id=${courseId}`,
-          { credentials: 'include' }
+        const response = await apiFetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/students/course-contents?course_id=${courseId}`
         );
 
         if (!response.ok) {
@@ -45,7 +52,7 @@ export default function StudentCourseContentsPage() {
     }
 
     fetchCourseContents();
-  }, [courseId]);
+  }, [courseId, authLoading, isAuthenticated]);
 
   // Build tree structure from Ltree paths
   const buildTree = (contents: CourseContentStudentList[]): TreeNode[] => {

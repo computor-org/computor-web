@@ -65,20 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Refresh interval: 50 minutes (3000000 ms)
     const REFRESH_INTERVAL = 50 * 60 * 1000;
 
+    // Set up interval to refresh token periodically
     const refreshInterval = setInterval(async () => {
       console.log('Proactively refreshing token...');
-      await refreshSession();
-    }, REFRESH_INTERVAL);
-
-    // Also do an initial refresh check after 50 minutes
-    const initialTimeout = setTimeout(async () => {
-      console.log('Initial proactive token refresh...');
-      await refreshSession();
+      const result = await refreshSession();
+      if (!result.success) {
+        console.error('Proactive token refresh failed');
+      }
     }, REFRESH_INTERVAL);
 
     return () => {
       clearInterval(refreshInterval);
-      clearTimeout(initialTimeout);
     };
   }, [user]);
 

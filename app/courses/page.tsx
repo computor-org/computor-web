@@ -2,20 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiFetch } from '@/src/utils/apiClient';
+import { useAuth } from '@/src/contexts/AuthContext';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import type { CourseList } from 'types/generated';
 
 export default function CoursesPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [courses, setCourses] = useState<CourseList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Don't fetch until authentication is confirmed
+    if (authLoading || !isAuthenticated) {
+      return;
+    }
+
     async function fetchCourses() {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`, {
-          credentials: 'include',
-        });
+        const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch courses');
@@ -31,7 +37,7 @@ export default function CoursesPage() {
     }
 
     fetchCourses();
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   return (
     <AuthenticatedLayout>

@@ -3,10 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { apiFetch } from '@/src/utils/apiClient';
+import { useAuth } from '@/src/contexts/AuthContext';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import type { CourseContentStudentGet } from 'types/generated';
 
 export default function AssignmentDetailPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const params = useParams();
   const courseId = params.id as string;
   const assignmentId = params.assignmentId as string;
@@ -15,11 +20,15 @@ export default function AssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Don't fetch until authentication is confirmed
+    if (authLoading || !isAuthenticated) {
+      return;
+    }
+
     async function fetchAssignment() {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/students/course-contents/${assignmentId}`,
-          { credentials: 'include' }
+        const response = await apiFetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/students/course-contents/${assignmentId}`
         );
 
         if (!response.ok) {
@@ -36,7 +45,7 @@ export default function AssignmentDetailPage() {
     }
 
     fetchAssignment();
-  }, [assignmentId]);
+  }, [assignmentId, authLoading, isAuthenticated]);
 
   if (loading) {
     return (
@@ -104,8 +113,12 @@ export default function AssignmentDetailPage() {
         {/* Description */}
         {assignment.description && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Description</h2>
-            <p className="text-gray-700">{assignment.description}</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Description</h2>
+            <div className="prose prose-slate prose-lg max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {assignment.description}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 

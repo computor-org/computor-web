@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { apiFetch } from '../utils/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SubItem {
@@ -101,12 +102,16 @@ export default function Sidebar() {
 
   // Fetch course-specific views when in course context
   useEffect(() => {
+    // Only fetch if user is authenticated
+    if (!user) {
+      return;
+    }
+
     if (currentCourseId) {
       async function fetchCourseViews() {
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/user/views/${currentCourseId}`,
-            { credentials: 'include' }
+          const response = await apiFetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/user/views/${currentCourseId}`
           );
           if (response.ok) {
             const data = await response.json();
@@ -122,7 +127,7 @@ export default function Sidebar() {
     } else {
       setCourseViews([]);
     }
-  }, [currentCourseId, views]);
+  }, [currentCourseId, views, user]);
 
   const toggleView = (viewId: string) => {
     setExpandedViews(prev => ({

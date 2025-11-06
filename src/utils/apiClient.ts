@@ -18,14 +18,21 @@ let refreshPromise: Promise<boolean> | null = null;
  */
 async function refreshAccessToken(): Promise<boolean> {
   try {
+    console.log('[apiClient] Calling /auth/refresh endpoint...');
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include', // Send refresh token cookie
     });
 
-    return response.ok;
+    if (response.ok) {
+      console.log('[apiClient] Token refresh successful');
+      return true;
+    } else {
+      console.log(`[apiClient] Token refresh failed with status: ${response.status}`);
+      return false;
+    }
   } catch (error) {
-    console.error('Token refresh failed:', error);
+    console.error('[apiClient] Token refresh error:', error);
     return false;
   }
 }
@@ -76,10 +83,9 @@ export async function apiFetch(
         // Retry the original request
         return fetch(url, fetchOptions);
       } else {
-        // Refresh failed, redirect to login
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        // Refresh failed, just return the 401 response
+        // Let the calling component handle it
+        console.log('Token refresh failed');
         return response;
       }
     }
@@ -93,11 +99,10 @@ export async function apiFetch(
       // Retry the original request with new token
       return fetch(url, fetchOptions);
     } else {
-      console.log('Token refresh failed, redirecting to login');
-      // Refresh failed, redirect to login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+      console.log('Token refresh failed');
+      // Refresh failed, just return the 401 response
+      // The AuthContext/pages will handle logout/redirect
+      return response;
     }
   }
 
