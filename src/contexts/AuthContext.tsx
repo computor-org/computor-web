@@ -13,7 +13,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<AuthResponse>;
   loginWithSSO: (provider?: string) => void;
   logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshSession = async () => {
+  const refreshSession = async (): Promise<AuthResponse> => {
     try {
       let response: AuthResponse | null = null;
 
@@ -131,14 +131,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response?.success && response.user) {
         setUser(response.user);
+        return response;
       } else {
         setUser(null);
         setViews([]);
+        return {
+          success: false,
+          error: 'Session refresh failed',
+        };
       }
     } catch (error) {
       console.error('Session refresh failed:', error);
       setUser(null);
       setViews([]);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   };
 
