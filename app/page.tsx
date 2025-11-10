@@ -10,6 +10,7 @@ export default function Home() {
   const { user, logout } = useAuth();
   const [extensionUrl, setExtensionUrl] = useState<string | null>(null);
   const [extensionLoading, setExtensionLoading] = useState(true);
+  const [gettingStartedUrl, setGettingStartedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchExtensionUrl() {
@@ -29,7 +30,23 @@ export default function Home() {
       }
     }
 
+    async function fetchGettingStartedUrl() {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/extensions-getting-started`);
+        if (response.ok) {
+          const url = await response.text();
+          setGettingStartedUrl(url.replace(/^"|"$/g, '')); // Remove quotes if present
+        } else {
+          setGettingStartedUrl(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch getting started URL:', error);
+        setGettingStartedUrl(null);
+      }
+    }
+
     fetchExtensionUrl();
+    fetchGettingStartedUrl();
   }, []);
 
   const handleLogout = async () => {
@@ -40,6 +57,12 @@ export default function Home() {
   const handleDownload = () => {
     if (extensionUrl) {
       window.open(extensionUrl, '_blank');
+    }
+  };
+
+  const handleGettingStarted = () => {
+    if (gettingStartedUrl) {
+      window.open(gettingStartedUrl, '_blank');
     }
   };
 
@@ -123,12 +146,21 @@ export default function Home() {
                 <span>Extension Not Available</span>
               </div>
             )}
-            <Link
-              href="/login"
-              className="px-8 py-4 bg-white text-blue-600 rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all font-semibold text-lg"
-            >
-              Get Started →
-            </Link>
+            {gettingStartedUrl ? (
+              <button
+                onClick={handleGettingStarted}
+                className="px-8 py-4 bg-white text-blue-600 rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all font-semibold text-lg"
+              >
+                Get Started →
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="px-8 py-4 bg-white text-blue-600 rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all font-semibold text-lg"
+              >
+                Get Started →
+              </Link>
+            )}
           </div>
 
           {/* VS Code Extension Card */}
