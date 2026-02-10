@@ -1,21 +1,20 @@
 'use client';
 
-import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
-import NotFound from '@/src/components/NotFound';
-import { useParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
+/**
+ * Redirect /courses/[id]/tutor/students → /courses/[id]/tutor
+ * The main tutor page already has the students table with progress data.
+ */
 export default function TutorStudentsPage() {
   const params = useParams();
+  const router = useRouter();
   const courseId = params.id as string;
 
-  return (
-    <AuthenticatedLayout>
-      <NotFound
-        title="Students - Coming Soon"
-        message="The tutor students view is not yet implemented."
-        backLink={`/courses/${courseId}`}
-        backText="Back to Course"
-      />
-    </AuthenticatedLayout>
-  );
+  useEffect(() => {
+    router.replace(`/courses/${courseId}/tutor`);
+  }, [courseId, router]);
+
+  return null;
 }

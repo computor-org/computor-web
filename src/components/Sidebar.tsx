@@ -89,8 +89,10 @@ const getViewNavigation = (courseId: string): NavItem[] => [
 function computeAutoExpanded(items: NavItem[], pathname: string): Record<string, boolean> {
   const expanded: Record<string, boolean> = {};
   for (const item of items) {
-    if (item.subItems && item.subItems.length > 0 && pathname.startsWith(item.path + '/')) {
-      expanded[item.id] = true;
+    if (item.subItems && item.subItems.length > 0) {
+      if (pathname === item.path || pathname.startsWith(item.path + '/')) {
+        expanded[item.id] = true;
+      }
     }
   }
   return expanded;
@@ -140,9 +142,14 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, views } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>(() =>
-    computeAutoExpanded(defaultNavigation, pathname)
-  );
+  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>(() => {
+    const cMatch = pathname.match(/^\/courses\/([^/]+)/);
+    const cId = cMatch ? cMatch[1] : null;
+    const items = cId
+      ? getViewNavigation(cId)
+      : defaultNavigation;
+    return computeAutoExpanded(items, pathname);
+  });
   const [courseViews, setCourseViews] = useState<string[]>([]);
 
   // Detect if we're in a course context
