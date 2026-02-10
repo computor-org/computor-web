@@ -5,18 +5,19 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiFetch, apiPost, apiDelete } from '@/src/utils/apiClient';
+import { CoderClient } from '@/src/generated/clients/CoderClient';
+import { WorkspaceRolesClient } from '@/src/generated/clients/WorkspaceRolesClient';
 import WorkspaceStatusBadge from '@/src/components/workspaces/WorkspaceStatusBadge';
 import ConfirmDialog from '@/src/components/workspaces/ConfirmDialog';
 import Notification from '@/src/components/workspaces/Notification';
 import type {
   WorkspaceRoleUser,
   CoderWorkspace,
-  WorkspaceListResponse,
   WorkspaceTemplate,
 } from '@/src/types/workspaces';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const coderClient = new CoderClient();
+const rolesClient = new WorkspaceRolesClient();
 
 export default function UserDetailPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -33,9 +34,7 @@ export default function UserDetailPage() {
   const fetchUserAndWorkspaces = useCallback(async () => {
     try {
       // Fetch user info from the role users list
-      const usersResponse = await apiFetch(`${API_URL}/workspaces/roles/users`);
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      const allUsers: WorkspaceRoleUser[] = await usersResponse.json();
+      const allUsers = await rolesClient.listUsers();
       const foundUser = allUsers.find((u) => u.user_id === userId);
 
       if (!foundUser) {
@@ -48,10 +47,11 @@ export default function UserDetailPage() {
 
       // Fetch workspaces for this user
       if (foundUser.email) {
-        const wsResponse = await apiFetch(`${API_URL}/coder/workspaces?email=${encodeURIComponent(foundUser.email)}`);
-        if (wsResponse.ok) {
-          const data: WorkspaceListResponse = await wsResponse.json();
+        try {
+          const data = await coderClient.listWorkspaces({ email: foundUser.email });
           setWorkspaces(data.workspaces);
+        } catch {
+          // Non-critical: user may not have workspaces
         }
       }
 
@@ -72,11 +72,9 @@ export default function UserDetailPage() {
     if (!user?.email) return;
     setProvisioning(true);
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/provision`, {
-        email: user.email,
-        template: 'python-workspace' as WorkspaceTemplate,
+      await coderClient.provisionWorkspace({
+        body: { email: user.email, template: 'python-workspace' as WorkspaceTemplate },
       });
-      if (!response.ok) throw new Error('Provisioning failed');
       setNotification({ message: 'Workspace provisioned', type: 'success' });
       await fetchUserAndWorkspaces();
     } catch (err) {
@@ -88,8 +86,7 @@ export default function UserDetailPage() {
 
   const handleStart = async (owner: string, name: string) => {
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/start`);
-      if (!response.ok) throw new Error('Failed to start');
+      await coderClient.startWorkspace({ username: owner, workspaceName: name });
       setNotification({ message: 'Workspace starting...', type: 'success' });
       setTimeout(fetchUserAndWorkspaces, 2000);
     } catch (err) {
@@ -99,8 +96,7 @@ export default function UserDetailPage() {
 
   const handleStop = async (owner: string, name: string) => {
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/stop`);
-      if (!response.ok) throw new Error('Failed to stop');
+      await coderClient.stopWorkspace({ username: owner, workspaceName: name });
       setNotification({ message: 'Workspace stopping...', type: 'success' });
       setTimeout(fetchUserAndWorkspaces, 2000);
     } catch (err) {
@@ -111,8 +107,7 @@ export default function UserDetailPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const response = await apiDelete(`${API_URL}/coder/workspaces/${encodeURIComponent(deleteTarget.owner)}/${encodeURIComponent(deleteTarget.name)}`);
-      if (!response.ok) throw new Error('Failed to delete');
+      await coderClient.deleteWorkspace({ username: deleteTarget.owner, workspaceName: deleteTarget.name });
       setNotification({ message: 'Workspace deleted', type: 'success' });
       setDeleteTarget(null);
       await fetchUserAndWorkspaces();
@@ -124,11 +119,9 @@ export default function UserDetailPage() {
 
   const handleOpenWorkspace = async (owner: string, name: string) => {
     try {
-      const response = await apiFetch(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`);
-      if (!response.ok) throw new Error('Failed to fetch details');
-      const data = await response.json();
+      const data = await coderClient.getWorkspaceDetails({ username: owner, workspaceName: name });
       if (data.code_server_url || data.access_url) {
-        window.open(data.code_server_url || data.access_url, '_blank');
+        window.open((data.code_server_url || data.access_url)!, '_blank');
       } else {
         setNotification({ message: 'No access URL available', type: 'error' });
       }

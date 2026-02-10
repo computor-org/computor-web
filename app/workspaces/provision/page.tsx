@@ -5,15 +5,14 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiFetch, apiPost } from '@/src/utils/apiClient';
+import { CoderClient } from '@/src/generated/clients/CoderClient';
 import type {
   CoderTemplate,
-  TemplateListResponse,
   ProvisionResult,
   WorkspaceTemplate,
 } from '@/src/types/workspaces';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const coderClient = new CoderClient();
 
 // Fallback templates if API fails
 const FALLBACK_TEMPLATES: CoderTemplate[] = [
@@ -39,9 +38,7 @@ export default function ProvisionPage() {
 
     async function fetchTemplates() {
       try {
-        const response = await apiFetch(`${API_URL}/coder/templates`);
-        if (!response.ok) throw new Error('Failed to load templates');
-        const data: TemplateListResponse = await response.json();
+        const data = await coderClient.listTemplates();
         setTemplates(data.templates.length > 0 ? data.templates : FALLBACK_TEMPLATES);
       } catch {
         setTemplates(FALLBACK_TEMPLATES);
@@ -80,16 +77,9 @@ export default function ProvisionPage() {
     setResult(null);
 
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/provision`, {
-        template: selectedTemplate as WorkspaceTemplate,
+      const data = await coderClient.provisionWorkspace({
+        body: { template: selectedTemplate as WorkspaceTemplate },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Provisioning failed' }));
-        throw new Error(errorData.detail || 'Provisioning failed');
-      }
-
-      const data: ProvisionResult = await response.json();
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

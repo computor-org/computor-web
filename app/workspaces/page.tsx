@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiFetch, apiPost, apiDelete } from '@/src/utils/apiClient';
+import { CoderClient } from '@/src/generated/clients/CoderClient';
 import WorkspaceCard from '@/src/components/workspaces/WorkspaceCard';
 import ConfirmDialog from '@/src/components/workspaces/ConfirmDialog';
 import Notification from '@/src/components/workspaces/Notification';
@@ -12,12 +12,10 @@ import WorkspaceStatusBadge from '@/src/components/workspaces/WorkspaceStatusBad
 import type {
   CoderWorkspace,
   CoderHealthResponse,
-  WorkspaceListResponse,
-  TemplateListResponse,
   WorkspaceDetails,
 } from '@/src/types/workspaces';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const coderClient = new CoderClient();
 
 export default function WorkspacesPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -40,9 +38,7 @@ export default function WorkspacesPage() {
 
   const fetchWorkspaces = useCallback(async () => {
     try {
-      const response = await apiFetch(`${API_URL}/coder/workspaces`);
-      if (!response.ok) throw new Error('Failed to fetch workspaces');
-      const data: WorkspaceListResponse = await response.json();
+      const data = await coderClient.listWorkspaces();
       setWorkspaces(data.workspaces);
       if (loading) setLoading(false);
       setError(null);
@@ -60,15 +56,13 @@ export default function WorkspacesPage() {
 
     async function loadDashboard() {
       // Health check (non-blocking)
-      apiFetch(`${API_URL}/coder/health`)
-        .then((r) => r.json())
-        .then((data: CoderHealthResponse) => setHealth(data))
+      coderClient.getHealth()
+        .then((data) => setHealth(data))
         .catch(() => setHealth({ healthy: false, message: 'Unable to connect' }));
 
       // Template count (non-blocking)
-      apiFetch(`${API_URL}/coder/templates`)
-        .then((r) => r.json())
-        .then((data: TemplateListResponse) => setTemplateCount(data.count))
+      coderClient.listTemplates()
+        .then((data) => setTemplateCount(data.count))
         .catch(() => {});
 
       // Workspaces (main load)
@@ -114,8 +108,7 @@ export default function WorkspacesPage() {
 
   const handleStart = async (owner: string, name: string) => {
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/start`);
-      if (!response.ok) throw new Error('Failed to start workspace');
+      await coderClient.startWorkspace({ username: owner, workspaceName: name });
       setNotification({ message: 'Workspace starting...', type: 'success' });
       setTimeout(fetchWorkspaces, 2000);
     } catch (err) {
@@ -125,8 +118,7 @@ export default function WorkspacesPage() {
 
   const handleStop = async (owner: string, name: string) => {
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/stop`);
-      if (!response.ok) throw new Error('Failed to stop workspace');
+      await coderClient.stopWorkspace({ username: owner, workspaceName: name });
       setNotification({ message: 'Workspace stopping...', type: 'success' });
       setTimeout(fetchWorkspaces, 2000);
     } catch (err) {
@@ -137,8 +129,7 @@ export default function WorkspacesPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const response = await apiDelete(`${API_URL}/coder/workspaces/${encodeURIComponent(deleteTarget.owner)}/${encodeURIComponent(deleteTarget.name)}`);
-      if (!response.ok) throw new Error('Failed to delete workspace');
+      await coderClient.deleteWorkspace({ username: deleteTarget.owner, workspaceName: deleteTarget.name });
       setNotification({ message: 'Workspace deleted', type: 'success' });
       setDeleteTarget(null);
       fetchWorkspaces();
@@ -150,9 +141,7 @@ export default function WorkspacesPage() {
 
   const handleViewDetails = async (owner: string, name: string) => {
     try {
-      const response = await apiFetch(`${API_URL}/coder/workspaces/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`);
-      if (!response.ok) throw new Error('Failed to fetch details');
-      const data: WorkspaceDetails = await response.json();
+      const data = await coderClient.getWorkspaceDetails({ username: owner, workspaceName: name });
 
       // If running and has a URL, open it
       if (data.status === 'running' && (data.code_server_url || data.access_url)) {

@@ -4,16 +4,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiFetch, apiPost, apiDelete } from '@/src/utils/apiClient';
+import { CoderClient } from '@/src/generated/clients/CoderClient';
+import { WorkspaceRolesClient } from '@/src/generated/clients/WorkspaceRolesClient';
 import Notification from '@/src/components/workspaces/Notification';
 import ConfirmDialog from '@/src/components/workspaces/ConfirmDialog';
 import type { WorkspaceRoleUser, WorkspaceTemplate } from '@/src/types/workspaces';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const coderClient = new CoderClient();
+const rolesClient = new WorkspaceRolesClient();
 const WORKSPACE_ROLES = ['_workspace_user', '_workspace_maintainer'] as const;
 
 export default function WorkspaceAdminPage() {
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState<WorkspaceRoleUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +36,7 @@ export default function WorkspaceAdminPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await apiFetch(`${API_URL}/workspaces/roles/users`);
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data: WorkspaceRoleUser[] = await response.json();
+      const data = await rolesClient.listUsers();
       setUsers(data);
       setError(null);
     } catch (err) {
@@ -61,9 +61,8 @@ export default function WorkspaceAdminPage() {
 
       setWorkspaceStatus((prev) => ({ ...prev, [u.user_id]: 'loading' }));
 
-      apiFetch(`${API_URL}/coder/workspaces/exists?email=${encodeURIComponent(u.email)}`)
-        .then((r) => r.json())
-        .then((exists: boolean) => {
+      coderClient.checkWorkspaceExists({ email: u.email })
+        .then((exists) => {
           setWorkspaceStatus((prev) => ({ ...prev, [u.user_id]: exists }));
         })
         .catch(() => {
@@ -78,26 +77,19 @@ export default function WorkspaceAdminPage() {
 
     setAssigning(true);
     try {
-      const response = await apiPost(`${API_URL}/workspaces/roles/assign`, {
-        email: assignEmail,
-        role_id: assignRole,
+      await rolesClient.assignRole({
+        body: { email: assignEmail, role_id: assignRole },
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ detail: 'Failed to assign role' }));
-        throw new Error(err.detail || 'Failed to assign role');
-      }
 
       // Optionally provision workspace
       if (assignProvision) {
-        const provResponse = await apiPost(`${API_URL}/coder/workspaces/provision`, {
-          email: assignEmail,
-          template: 'python-workspace' as WorkspaceTemplate,
-        });
-        if (!provResponse.ok) {
-          setNotification({ message: 'Role assigned but workspace provisioning failed', type: 'error' });
-        } else {
+        try {
+          await coderClient.provisionWorkspace({
+            body: { email: assignEmail, template: 'python-workspace' as WorkspaceTemplate },
+          });
           setNotification({ message: 'Role assigned and workspace provisioned', type: 'success' });
+        } catch {
+          setNotification({ message: 'Role assigned but workspace provisioning failed', type: 'error' });
         }
       } else {
         setNotification({ message: 'Role assigned successfully', type: 'success' });
@@ -118,10 +110,7 @@ export default function WorkspaceAdminPage() {
   const handleRemoveRole = async () => {
     if (!removeTarget) return;
     try {
-      const response = await apiDelete(
-        `${API_URL}/workspaces/roles/users/${encodeURIComponent(removeTarget.userId)}/${encodeURIComponent(removeTarget.roleId)}`
-      );
-      if (!response.ok) throw new Error('Failed to remove role');
+      await rolesClient.removeRole({ userId: removeTarget.userId, roleId: removeTarget.roleId });
       setNotification({ message: 'Role removed', type: 'success' });
       setRemoveTarget(null);
       await fetchUsers();
@@ -135,11 +124,7 @@ export default function WorkspaceAdminPage() {
     const u = users.find((x) => x.user_id === userId);
     if (!u?.email) return;
     try {
-      const response = await apiPost(`${API_URL}/workspaces/roles/assign`, {
-        email: u.email,
-        role_id: roleId,
-      });
-      if (!response.ok) throw new Error('Failed to add role');
+      await rolesClient.assignRole({ body: { email: u.email, role_id: roleId } });
       setNotification({ message: 'Role added', type: 'success' });
       await fetchUsers();
     } catch (err) {
@@ -149,11 +134,9 @@ export default function WorkspaceAdminPage() {
 
   const handleProvisionForUser = async (email: string) => {
     try {
-      const response = await apiPost(`${API_URL}/coder/workspaces/provision`, {
-        email,
-        template: 'python-workspace' as WorkspaceTemplate,
+      await coderClient.provisionWorkspace({
+        body: { email, template: 'python-workspace' as WorkspaceTemplate },
       });
-      if (!response.ok) throw new Error('Failed to provision');
       setNotification({ message: 'Workspace provisioned', type: 'success' });
       setWorkspaceStatus({});
     } catch (err) {

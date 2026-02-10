@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/src/components/AuthenticatedLayout';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiFetch } from '@/src/utils/apiClient';
-import type { CoderTemplate, TemplateListResponse } from '@/src/types/workspaces';
+import { CoderClient } from '@/src/generated/clients/CoderClient';
+import type { CoderTemplate } from '@/src/types/workspaces';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const coderClient = new CoderClient();
 
 function TemplateIcon({ name }: { name: string }) {
   const lower = name.toLowerCase();
@@ -49,9 +49,7 @@ export default function TemplatesPage() {
 
     async function fetchTemplates() {
       try {
-        const response = await apiFetch(`${API_URL}/coder/templates`);
-        if (!response.ok) throw new Error('Failed to fetch templates');
-        const data: TemplateListResponse = await response.json();
+        const data = await coderClient.listTemplates();
         setTemplates(data.templates);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
