@@ -12,17 +12,39 @@ interface SubItem {
   path: string;
 }
 
-interface ViewNavItem {
+interface NavItem {
   id: string;
-  view: string;
   label: string;
   path: string;
   icon: string;
   subItems?: SubItem[];
+  /** Only used for course view navigation — matched against user's available views */
+  view?: string;
 }
 
+// Default navigation (when NOT in a course context)
+const defaultNavigation: NavItem[] = [
+  {
+    id: 'courses',
+    label: 'Courses',
+    path: '/courses',
+    icon: 'courses',
+  },
+  {
+    id: 'workspaces',
+    label: 'Workspaces',
+    path: '/workspaces',
+    icon: 'workspaces',
+    subItems: [
+      { id: 'ws-templates', label: 'Templates', path: '/workspaces/templates' },
+      { id: 'ws-provision', label: 'Provision', path: '/workspaces/provision' },
+      { id: 'ws-admin', label: 'Administration', path: '/workspaces/admin' },
+    ],
+  },
+];
+
 // Navigation structure for view-based navigation (when in course context)
-const getViewNavigation = (courseId: string): ViewNavItem[] => [
+const getViewNavigation = (courseId: string): NavItem[] => [
   {
     id: 'student-view',
     view: 'student',
@@ -60,6 +82,20 @@ const getViewNavigation = (courseId: string): ViewNavItem[] => [
   },
 ];
 
+/**
+ * Given a list of nav items and the current pathname, return which
+ * item IDs should be auto-expanded (pathname is inside a sub-item).
+ */
+function computeAutoExpanded(items: NavItem[], pathname: string): Record<string, boolean> {
+  const expanded: Record<string, boolean> = {};
+  for (const item of items) {
+    if (item.subItems && item.subItems.length > 0 && pathname.startsWith(item.path + '/')) {
+      expanded[item.id] = true;
+    }
+  }
+  return expanded;
+}
+
 const icons: Record<string, React.ReactElement> = {
   courses: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,6 +118,17 @@ const icons: Record<string, React.ReactElement> = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   ),
+  workspaces: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ),
+  admin: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
   chevronDown: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -93,7 +140,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, views } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>({});
+  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>(() =>
+    computeAutoExpanded(defaultNavigation, pathname)
+  );
   const [courseViews, setCourseViews] = useState<string[]>([]);
 
   // Detect if we're in a course context
@@ -129,6 +178,30 @@ export default function Sidebar() {
     }
   }, [currentCourseId, views, user]);
 
+  // Auto-expand sidebar sections when navigating into a sub-page
+  useEffect(() => {
+    const items = currentCourseId
+      ? getViewNavigation(currentCourseId)
+      : defaultNavigation;
+
+    const autoExpanded = computeAutoExpanded(items, pathname);
+
+    // Merge: only set to true, never force-collapse something the user opened
+    if (Object.keys(autoExpanded).length > 0) {
+      setExpandedViews(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [key, val] of Object.entries(autoExpanded)) {
+          if (val && !prev[key]) {
+            next[key] = true;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [pathname, currentCourseId]);
+
   const toggleView = (viewId: string) => {
     setExpandedViews(prev => ({
       ...prev,
@@ -136,13 +209,80 @@ export default function Sidebar() {
     }));
   };
 
+  /** Render a list of nav items with expand/collapse sub-items */
+  const renderNavItems = (items: NavItem[]) =>
+    items.map((navItem) => {
+      const hasSubItems = navItem.subItems && navItem.subItems.length > 0;
+      const isExpanded = expandedViews[navItem.id];
+      const isExactActive = pathname === navItem.path;
+      const isChildActive = pathname.startsWith(navItem.path + '/');
+
+      return (
+        <div key={navItem.id} className="space-y-1">
+          <div className="flex items-center">
+            <Link
+              href={navItem.path}
+              className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                isExactActive
+                  ? 'bg-blue-50 text-blue-600'
+                  : isChildActive
+                  ? 'bg-blue-50/50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              title={collapsed ? navItem.label : undefined}
+            >
+              <span className={isExactActive || isChildActive ? 'text-blue-600' : 'text-gray-500'}>
+                {icons[navItem.icon]}
+              </span>
+              {!collapsed && (
+                <span className="text-sm font-medium">{navItem.label}</span>
+              )}
+            </Link>
+
+            {!collapsed && hasSubItems && (
+              <button
+                onClick={() => toggleView(navItem.id)}
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+              >
+                <span className={`transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}>
+                  {icons.chevronDown}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {!collapsed && isExpanded && navItem.subItems && (
+            <div className="ml-8 space-y-1">
+              {navItem.subItems.map((subItem) => {
+                const isSubActive = pathname === subItem.path || pathname.startsWith(subItem.path + '/');
+
+                return (
+                  <Link
+                    key={subItem.id}
+                    href={subItem.path}
+                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isSubActive
+                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {subItem.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    });
+
   // If we're in a course context, show view-based navigation
   if (currentCourseId) {
     const viewNavigation = getViewNavigation(currentCourseId);
     // Use course-specific views if available, otherwise fall back to global views
     const activeViews = courseViews.length > 0 ? courseViews : views;
     const availableViews = viewNavigation.filter((item) =>
-      activeViews.includes(item.view)
+      activeViews.includes(item.view!)
     );
 
     return (
@@ -189,75 +329,7 @@ export default function Sidebar() {
             {!collapsed && <span className="text-sm">Back to Courses</span>}
           </Link>
 
-          {availableViews.map((viewItem) => {
-            const isExpanded = expandedViews[viewItem.id];
-            const isViewActive = pathname.startsWith(viewItem.path);
-
-            return (
-              <div key={viewItem.id} className="space-y-1">
-                {/* Main View Item */}
-                <div className="flex items-center">
-                  <Link
-                    href={viewItem.path}
-                    className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                      pathname === viewItem.path
-                        ? 'bg-blue-50 text-blue-600'
-                        : isViewActive
-                        ? 'bg-blue-50/50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    title={collapsed ? viewItem.label : undefined}
-                  >
-                    <span className={pathname === viewItem.path || isViewActive ? 'text-blue-600' : 'text-gray-500'}>
-                      {icons[viewItem.icon]}
-                    </span>
-                    {!collapsed && (
-                      <span className="text-sm font-medium">{viewItem.label}</span>
-                    )}
-                  </Link>
-
-                  {/* Expand/Collapse Button */}
-                  {!collapsed && viewItem.subItems && viewItem.subItems.length > 0 && (
-                    <button
-                      onClick={() => toggleView(viewItem.id)}
-                      className="p-2 hover:bg-gray-100 rounded transition-colors"
-                    >
-                      <span
-                        className={`transition-transform inline-block ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
-                      >
-                        {icons.chevronDown}
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Sub Items */}
-                {!collapsed && isExpanded && viewItem.subItems && (
-                  <div className="ml-8 space-y-1">
-                    {viewItem.subItems.map((subItem) => {
-                      const isSubActive = pathname === subItem.path;
-
-                      return (
-                        <Link
-                          key={subItem.id}
-                          href={subItem.path}
-                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            isSubActive
-                              ? 'bg-blue-50 text-blue-600 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                          }`}
-                        >
-                          {subItem.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {renderNavItems(availableViews)}
         </nav>
 
         {/* Footer - Logo & Version */}
@@ -280,7 +352,7 @@ export default function Sidebar() {
     );
   }
 
-  // Default navigation - show "Courses" list
+  // Default navigation
   return (
     <aside
       className={`${
@@ -312,25 +384,9 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Navigation - Courses List */}
+      {/* Navigation - Main Items */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {/* Courses Item */}
-        <Link
-          href="/courses"
-          className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-            pathname === '/courses'
-              ? 'bg-blue-50 text-blue-600'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-          title={collapsed ? 'Courses' : undefined}
-        >
-          <span className={pathname === '/courses' ? 'text-blue-600' : 'text-gray-500'}>
-            {icons.courses}
-          </span>
-          {!collapsed && (
-            <span className="text-sm font-medium">Courses</span>
-          )}
-        </Link>
+        {renderNavItems(defaultNavigation)}
       </nav>
 
       {/* Footer - Logo & Version */}

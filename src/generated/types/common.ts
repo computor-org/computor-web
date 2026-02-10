@@ -8,6 +8,8 @@
 
 
 
+import type { ProviderAuthCredentials } from './auth';
+
 import type { CourseContentTypeList, CourseExecutionBackendConfig, GradedByCourseMember, ResultStudentList, SubmissionGroupStudentList } from './courses';
 
 import type { ExampleValidationResult, ExampleVersionList } from './examples';
@@ -18,9 +20,16 @@ import type { OrganizationGet } from './organizations';
 
 import type { TaskStatus } from './tasks';
 
-import type { UserGet } from './users';
 
 
+/**
+ * Response with Coder session token.
+ */
+export interface CoderSessionResponse {
+  success: boolean;
+  session_token?: string | null;
+  message: string;
+}
 
 export interface StudentProfileCreate {
   student_id?: string | null;
@@ -70,12 +79,14 @@ export interface StudentProfileQuery {
 }
 
 export interface GroupCreate {
-  /** Group name */
-  name: string;
+  /** Group title */
+  title: string;
+  /** Group slug identifier */
+  slug: string;
   /** Group description */
   description?: string | null;
   /** Type of group (fixed or dynamic) */
-  group_type: GroupType;
+  type: GroupType;
   /** Additional group properties */
   properties?: any | null;
 }
@@ -89,12 +100,14 @@ export interface GroupGet {
   updated_by?: string | null;
   /** Group unique identifier */
   id: string;
-  /** Group name */
-  name: string;
+  /** Group title */
+  title: string;
   /** Group description */
   description?: string | null;
+  /** Group slug identifier */
+  slug: string;
   /** Type of group */
-  group_type: GroupType;
+  type: GroupType;
   /** Additional properties */
   properties?: any | null;
 }
@@ -106,21 +119,25 @@ export interface GroupList {
   updated_at?: string | null;
   /** Group unique identifier */
   id: string;
-  /** Group name */
-  name: string;
+  /** Group title */
+  title: string;
   /** Group description */
   description?: string | null;
+  /** Group slug identifier */
+  slug: string;
   /** Type of group */
-  group_type: GroupType;
+  type: GroupType;
 }
 
 export interface GroupUpdate {
-  /** Group name */
-  name?: string | null;
+  /** Group title */
+  title?: string | null;
+  /** Group slug identifier */
+  slug?: string | null;
   /** Group description */
   description?: string | null;
   /** Type of group */
-  group_type?: GroupType | null;
+  type?: GroupType | null;
   /** Additional properties */
   properties?: any | null;
 }
@@ -130,12 +147,12 @@ export interface GroupQuery {
   limit?: number | null;
   /** Filter by group ID */
   id?: string | null;
-  /** Filter by group name */
-  name?: string | null;
+  /** Filter by group title */
+  title?: string | null;
+  /** Filter by group slug */
+  slug?: string | null;
   /** Filter by group type */
-  group_type?: GroupType | null;
-  /** Filter by archived status */
-  archived?: boolean | null;
+  type?: GroupType | null;
 }
 
 export interface FilterBase {
@@ -368,6 +385,72 @@ export interface ExecutionBackendReference {
 }
 
 /**
+ * User configuration for a service.
+ * 
+ * DEPRECATED: Use UserDeployment directly in ServiceConfig instead.
+ * Kept for backwards compatibility.
+ */
+export interface ServiceUserConfig {
+  /** Username for the service user */
+  username: string;
+  /** Email for the service user */
+  email?: string | null;
+  /** Given name */
+  given_name?: string | null;
+  /** Family name */
+  family_name?: string | null;
+}
+
+/**
+ * API token configuration for a service.
+ */
+export interface ServiceApiTokenConfig {
+  /** Predefined API token (admin only). If not provided, a new token will be generated. */
+  token?: string | null;
+  /** Token name */
+  name?: string | null;
+  /** Initial scopes. Will be updated with course-specific scopes after deployment. */
+  scopes?: string[] | null;
+  /** Number of days until token expires. None means no expiration. */
+  expires_days?: number | null;
+  /** If True, delete existing token and recreate with predefined value. Requires 'token' to be set. */
+  force_recreate?: boolean;
+}
+
+/**
+ * Full service configuration for defining services at root level.
+ * 
+ * Services are deployed AFTER course hierarchy creation, allowing course_members
+ * to be assigned to existing courses.
+ */
+export interface ServiceConfig {
+  /** Unique identifier for the service */
+  slug: string;
+  /** ServiceType Ltree path (e.g., 'testing.temporal') */
+  service_type_path: string;
+  /** Programming language for testing services (e.g., 'python', 'matlab') */
+  language?: string | null;
+  /** User configuration for this service (same as regular users) */
+  user: UserDeployment;
+  /** API token configuration */
+  api_token: ServiceApiTokenConfig;
+  /** Service-specific configuration (task_queue, timeouts, etc.) */
+  config?: Record<string, any> | null;
+  /** Service description */
+  description?: string | null;
+  /** Course memberships for this service's user (e.g., _tutor role for testing services) */
+  course_members?: CourseMemberDeployment[];
+}
+
+/**
+ * Reference to a service by slug for linking to courses.
+ */
+export interface ServiceReference {
+  /** Slug of the service to link */
+  slug: string;
+}
+
+/**
  * Course content type configuration for deployment.
  */
 export interface CourseContentTypeConfig {
@@ -477,7 +560,9 @@ export interface CourseConfig {
   description?: string | null;
   /** Course project structure */
   projects?: CourseProjects | null;
-  /** References to execution backends to link to this course (by slug) */
+  /** References to services to use for this course (by slug) */
+  services?: ServiceReference[] | null;
+  /** DEPRECATED: Use 'services' instead. References to execution backends to link to this course (by slug) */
   execution_backends?: ExecutionBackendReference[] | null;
   /** Course content types to be created (assignments, units, etc.) */
   content_types?: CourseContentTypeConfig[] | null;
@@ -499,7 +584,9 @@ export interface HierarchicalCourseConfig {
   description?: string | null;
   /** Course project structure */
   projects?: CourseProjects | null;
-  /** References to execution backends to link to this course (by slug) */
+  /** References to services to use for this course (by slug) */
+  services?: ServiceReference[] | null;
+  /** DEPRECATED: Use 'services' instead. References to execution backends to link to this course (by slug) */
   execution_backends?: ExecutionBackendReference[] | null;
   /** Course content types to be created (assignments, units, etc.) */
   content_types?: CourseContentTypeConfig[] | null;
@@ -551,7 +638,9 @@ export interface HierarchicalOrganizationConfig {
  * Supports deploying multiple organizations, each with multiple course families and courses.
  */
 export interface ComputorDeploymentConfig {
-  /** List of execution backends to create or ensure exist in the system */
+  /** List of services to create or ensure exist in the system (deployed in Phase 1) */
+  services?: ServiceConfig[] | null;
+  /** DEPRECATED: Use 'services' instead. List of execution backends to create or ensure exist in the system */
   execution_backends?: ExecutionBackendConfig[] | null;
   /** List of organizations with nested course families and courses */
   organizations?: HierarchicalOrganizationConfig[];
@@ -811,52 +900,6 @@ export interface Repository {
   commit?: string | null;
 }
 
-export interface ExecutionBackendCreate {
-  type: string;
-  slug: string;
-  properties?: any | null;
-}
-
-export interface ExecutionBackendGet {
-  type: string;
-  slug: string;
-  properties?: any | null;
-  /** Creation timestamp */
-  created_at?: string | null;
-  /** Update timestamp */
-  updated_at?: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  id: string;
-}
-
-export interface ExecutionBackendList {
-  type: string;
-  slug: string;
-  properties?: any | null;
-  /** Creation timestamp */
-  created_at?: string | null;
-  /** Update timestamp */
-  updated_at?: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  id: string;
-}
-
-export interface ExecutionBackendUpdate {
-  type?: string | null;
-  slug?: string | null;
-  properties?: any | null;
-}
-
-export interface ExecutionBackendQuery {
-  skip?: number | null;
-  limit?: number | null;
-  id?: string | null;
-  type?: string | null;
-  slug?: string | null;
-}
-
 export interface ListQuery {
   skip?: number | null;
   limit?: number | null;
@@ -876,6 +919,157 @@ export interface BaseEntityGet {
   updated_at?: string | null;
   created_by?: string | null;
   updated_by?: string | null;
+}
+
+/**
+ * Base fields shared across all service type DTOs.
+ */
+export interface ServiceTypeBase {
+  /** Hierarchical path (e.g., 'testing.python', 'review.llm.gpt4') */
+  path: string;
+  /** Display name */
+  name: string;
+  /** Detailed description */
+  description?: string | null;
+  /** Category: worker, testing, review, metrics, integration */
+  category: string;
+  /** Python module providing functionality */
+  plugin_module?: string | null;
+  /** JSON Schema for config validation */
+  schema_?: any | null;
+  /** Icon identifier */
+  icon?: string | null;
+  /** Hex color for UI (e.g., #FF5733) */
+  color?: string | null;
+  /** Whether this service type is enabled */
+  enabled?: boolean;
+  /** Additional properties */
+  properties?: any | null;
+}
+
+/**
+ * DTO for creating a new service type.
+ */
+export interface ServiceTypeCreate {
+  /** Hierarchical path (e.g., 'testing.python', 'review.llm.gpt4') */
+  path: string;
+  /** Display name */
+  name: string;
+  /** Detailed description */
+  description?: string | null;
+  /** Category: worker, testing, review, metrics, integration */
+  category: string;
+  /** Python module providing functionality */
+  plugin_module?: string | null;
+  /** JSON Schema for config validation */
+  schema_?: any | null;
+  /** Icon identifier */
+  icon?: string | null;
+  /** Hex color for UI (e.g., #FF5733) */
+  color?: string | null;
+  /** Whether this service type is enabled */
+  enabled?: boolean;
+  /** Additional properties */
+  properties?: any | null;
+}
+
+/**
+ * DTO for updating an existing service type.
+ */
+export interface ServiceTypeUpdate {
+  name?: string | null;
+  description?: string | null;
+  category?: string | null;
+  plugin_module?: string | null;
+  schema_?: any | null;
+  icon?: string | null;
+  color?: string | null;
+  enabled?: boolean | null;
+  properties?: any | null;
+}
+
+/**
+ * DTO for listing service types (minimal fields).
+ */
+export interface ServiceTypeList {
+  /** Creation timestamp */
+  created_at?: string | null;
+  /** Update timestamp */
+  updated_at?: string | null;
+  /** UUID */
+  id: string;
+  /** Hierarchical path */
+  path: string;
+  /** Display name */
+  name: string;
+  /** Category */
+  category: string;
+  /** Enabled status */
+  enabled: boolean;
+  /** Icon identifier */
+  icon?: string | null;
+  /** Hex color */
+  color?: string | null;
+  /** Version number */
+  version: number;
+}
+
+/**
+ * DTO for getting a single service type (full fields).
+ */
+export interface ServiceTypeGet {
+  /** Creation timestamp */
+  created_at?: string | null;
+  /** Update timestamp */
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  /** UUID */
+  id: string;
+  /** Hierarchical path */
+  path: string;
+  /** Display name */
+  name: string;
+  /** Description */
+  description?: string | null;
+  /** Category */
+  category: string;
+  /** Python module */
+  plugin_module?: string | null;
+  /** JSON Schema */
+  schema_?: any | null;
+  /** Icon identifier */
+  icon?: string | null;
+  /** Hex color */
+  color?: string | null;
+  /** Enabled status */
+  enabled: boolean;
+  /** Additional properties */
+  properties?: any;
+  /** Version number */
+  version: number;
+}
+
+/**
+ * Query parameters for filtering service types.
+ */
+export interface ServiceTypeQuery {
+  skip?: number | null;
+  limit?: number | null;
+  /** Filter by UUID */
+  id?: string | null;
+  /** Filter by exact path */
+  path?: string | null;
+  /** Filter by path descendants (e.g., 'testing' returns all testing.*) */
+  path_descendant?: string | null;
+  /** Filter by path pattern (ltree lquery) */
+  path_pattern?: string | null;
+  /** Filter by category */
+  category?: string | null;
+  /** Filter by enabled status */
+  enabled?: boolean | null;
+  /** Filter by plugin module */
+  plugin_module?: string | null;
 }
 
 export interface GitlabGroupProjectConfig {
@@ -1218,6 +1412,90 @@ export interface SemanticVersion {
 }
 
 /**
+ * Request to sync GitLab permissions for a course member.
+ */
+export interface GitLabSyncRequest {
+  /** GitLab access token to check existing permissions before syncing (reduces API calls with organization token) */
+  access_token?: string | null;
+}
+
+/**
+ * Result of GitLab permission sync operation.
+ */
+export interface GitLabSyncResult {
+  course_member_id: string;
+  sync_status: string;
+  message?: string | null;
+}
+
+/**
+ * Optional configuration for tutor test (passed as JSON in form data).
+ */
+export interface TutorTestConfig {
+  store_graphics_artifacts?: boolean;
+  timeout_seconds?: number | null;
+}
+
+/**
+ * Response when creating a tutor test - just the essentials.
+ */
+export interface TutorTestCreateResponse {
+  test_id: string;
+  status?: "pending" | "running" | "completed" | "failed" | "timeout";
+  created_at?: string | null;
+}
+
+/**
+ * Quick status check for a tutor test run (for polling).
+ */
+export interface TutorTestStatus {
+  test_id: string;
+  status: "pending" | "running" | "completed" | "failed" | "timeout";
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  has_artifacts?: boolean;
+  artifact_count?: number;
+}
+
+/**
+ * Full tutor test details including result_dict from MinIO.
+ */
+export interface TutorTestGet {
+  test_id: string;
+  status: "pending" | "running" | "completed" | "failed" | "timeout";
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  result_dict?: any | null;
+  passed?: number | null;
+  failed?: number | null;
+  total?: number | null;
+  result_value?: number | null;
+  error?: string | null;
+  has_artifacts?: boolean;
+  artifact_count?: number;
+}
+
+/**
+ * Information about a single artifact.
+ */
+export interface TutorTestArtifactInfo {
+  filename: string;
+  size: number;
+  last_modified?: string | null;
+}
+
+/**
+ * List of artifacts from a tutor test.
+ */
+export interface TutorTestArtifactList {
+  test_id: string;
+  artifacts?: TutorTestArtifactInfo[];
+  total_count?: number;
+}
+
+/**
  * Member information in a submission group.
  */
 export interface TutorSubmissionGroupMember {
@@ -1467,6 +1745,165 @@ export interface StorageUsageStats {
   last_updated: string;
 }
 
+/**
+ * DTO for creating a new service account.
+ */
+export interface ServiceCreate {
+  /** URL-safe slug identifier (lowercase, alphanumeric, dots, hyphens) */
+  slug: string;
+  /** Human-readable service name */
+  name: string;
+  /** Service description */
+  description?: string | null;
+  /** Service type (e.g., 'temporal_worker', 'grading', 'notification') */
+  service_type: string;
+  /** Username for service user (defaults to slug) */
+  username?: string | null;
+  /** Email for service user */
+  email?: string | null;
+  /** Given name for service user (defaults to first word of name) */
+  given_name?: string | null;
+  /** Family name for service user (defaults to rest of name) */
+  family_name?: string | null;
+  /** Password for service user (optional - use API tokens instead) */
+  password?: string | null;
+  /** Service-specific configuration */
+  config?: Record<string, any> | null;
+  /** Whether the service is enabled */
+  enabled?: boolean | null;
+}
+
+/**
+ * DTO for updating a service account.
+ */
+export interface ServiceUpdate {
+  name?: string | null;
+  description?: string | null;
+  config?: Record<string, any> | null;
+  enabled?: boolean | null;
+  /** Last heartbeat timestamp */
+  last_seen_at?: string | null;
+  properties?: Record<string, any> | null;
+}
+
+/**
+ * DTO for retrieving a service account.
+ */
+export interface ServiceGet {
+  /** Creation timestamp */
+  created_at?: string | null;
+  /** Update timestamp */
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  /** Service UUID */
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  /** ServiceType UUID */
+  service_type_id?: string | null;
+  /** ServiceType path (e.g., 'testing.python') */
+  service_type_path?: string | null;
+  user_id: string;
+  config?: Record<string, any>;
+  enabled: boolean;
+  last_seen_at?: string | null;
+  /** Additional properties */
+  properties?: Record<string, any> | null;
+}
+
+/**
+ * DTO for listing services.
+ */
+export interface ServiceList {
+  /** Creation timestamp */
+  created_at?: string | null;
+  /** Update timestamp */
+  updated_at?: string | null;
+  items: ServiceGet[];
+}
+
+/**
+ * DTO for querying services.
+ */
+export interface ServiceQuery {
+  skip?: number | null;
+  limit?: number | null;
+  /** Filter by service UUID */
+  id?: string | null;
+  /** Filter by service slug */
+  slug?: string | null;
+  /** Filter by service type UUID */
+  service_type_id?: string | null;
+  /** Filter by enabled status */
+  enabled?: boolean | null;
+  /** Filter by user ID */
+  user_id?: string | null;
+}
+
+/**
+ * Count of deleted entities by type.
+ */
+export interface EntityDeleteCount {
+  courses?: number;
+  course_families?: number;
+  course_members?: number;
+  course_groups?: number;
+  course_content_types?: number;
+  course_contents?: number;
+  submission_groups?: number;
+  submission_group_members?: number;
+  submission_artifacts?: number;
+  submission_grades?: number;
+  submission_reviews?: number;
+  results?: number;
+  result_artifacts?: number;
+  course_content_deployments?: number;
+  deployment_histories?: number;
+  course_member_comments?: number;
+  messages?: number;
+  example_repositories?: number;
+  examples?: number;
+  example_versions?: number;
+  example_dependencies?: number;
+  student_profiles?: number;
+}
+
+/**
+ * Preview of what will be deleted in a cascade operation.
+ */
+export interface CascadeDeletePreview {
+  /** Type of root entity being deleted */
+  entity_type: string;
+  /** ID of root entity being deleted */
+  entity_id: string;
+  /** Name/identifier of root entity */
+  entity_name: string;
+  /** Count of child entities that will be deleted */
+  child_counts?: EntityDeleteCount;
+  /** MinIO storage paths that will be cleaned up */
+  minio_paths?: string[];
+}
+
+/**
+ * Result of a cascade deletion operation.
+ */
+export interface CascadeDeleteResult {
+  /** Whether this was a preview only */
+  dry_run: boolean;
+  /** Type of root entity deleted */
+  entity_type: string;
+  /** ID of root entity deleted */
+  entity_id: string;
+  /** Count of entities deleted by type */
+  deleted_counts?: EntityDeleteCount;
+  /** Number of MinIO objects deleted */
+  minio_objects_deleted?: number;
+  /** Errors encountered during deletion */
+  errors?: string[];
+}
+
 export interface TestCreate {
   artifact_id?: string | null;
   submission_group_id?: string | null;
@@ -1525,7 +1962,7 @@ export interface SubmissionListItem {
   course_member_id: string;
   course_content_id: string;
   submission_group_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   version_identifier: string;
   reference_version_identifier?: string | null;
@@ -1546,7 +1983,7 @@ export interface SubmissionQuery {
   course_member_id?: string | null;
   submission_group_id?: string | null;
   course_content_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   version_identifier?: string | null;
   reference_version_identifier?: string | null;
@@ -1920,6 +2357,9 @@ export interface SubmissionArtifactQuery {
   submission_group_id?: string | null;
   uploaded_by_course_member_id?: string | null;
   content_type?: string | null;
+  version_identifier?: string | null;
+  submit?: boolean | null;
+  latest?: boolean | null;
 }
 
 /**
@@ -1945,7 +2385,7 @@ export interface SubmissionGradeUpdate {
 /**
  * List item representation for submission grades.
  */
-export interface SubmissionGradeListItem {
+export interface SubmissionGradeList {
   /** Creation timestamp */
   created_at?: string | null;
   /** Update timestamp */
@@ -1986,6 +2426,10 @@ export interface SubmissionGradeQuery {
   artifact_id?: string | null;
   graded_by_course_member_id?: string | null;
   status?: GradingStatus | null;
+  course_id?: string | null;
+  latest?: boolean | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 /**
@@ -2083,6 +2527,24 @@ export interface ResultArtifactQuery {
   id?: string | null;
   result_id?: string | null;
   content_type?: string | null;
+}
+
+/**
+ * Information about a single uploaded artifact.
+ */
+export interface ArtifactInfo {
+  filename: string;
+  file_size: number;
+  content_type?: string | null;
+}
+
+/**
+ * Response for artifact upload endpoint.
+ */
+export interface ResultArtifactUploadResponse {
+  result_id: string;
+  artifacts_count: number;
+  artifacts: ArtifactInfo[];
 }
 
 export interface CourseMemberGitLabConfig {
@@ -2209,14 +2671,14 @@ export interface CourseContentDeploymentGet {
   example_identifier?: string | null;
   version_tag?: string | null;
   deployment_status: string;
-  deployment_message: string | null;
+  deployment_message?: string | null;
   assigned_at: string;
-  deployed_at: string | null;
-  last_attempt_at: string | null;
-  deployment_path: string | null;
-  version_identifier: string | null;
-  deployment_metadata: Record<string, any> | null;
-  workflow_id: string | null;
+  deployed_at?: string | null;
+  last_attempt_at?: string | null;
+  deployment_path?: string | null;
+  version_identifier?: string | null;
+  deployment_metadata?: Record<string, any> | null;
+  workflow_id?: string | null;
   example_version?: any | null;
 }
 
@@ -2347,68 +2809,11 @@ export interface DeployExampleRequest {
 }
 
 /**
- * DTO for creating a student.
- */
-export interface StudentCreate {
-  user_id?: string | null;
-  user?: UserGet | null;
-  course_group_id?: string | null;
-  course_group_title?: string | null;
-  role?: string | null;
-}
-
-/**
- * DTO for releasing multiple students.
- */
-export interface ReleaseStudentsCreate {
-  students?: StudentCreate[];
-  course_id: string;
-}
-
-/**
- * DTO for TUG student export data.
- */
-export interface TUGStudentExport {
-  course_group_title: string;
-  family_name: string;
-  given_name: string;
-  matriculation_number: string;
-  created_at: string;
-}
-
-/**
- * DTO for status query parameters.
- */
-export interface StatusQuery {
-  course_id?: string | null;
-}
-
-/**
  * GitLab connection credentials.
  */
 export interface GitLabCredentials {
   gitlab_url: string;
   gitlab_token: string;
-}
-
-/**
- * Represents a pending change for template generation.
- */
-export interface PendingChange {
-  /** new, update, remove */
-  type: string;
-  content_id: string;
-  path: string;
-  title: string;
-}
-
-/**
- * Response for pending changes check.
- */
-export interface PendingChangesResponse {
-  total_changes: number;
-  changes: PendingChange[];
-  last_release?: Record<string, any> | null;
 }
 
 /**
@@ -2578,7 +2983,7 @@ export interface ResultCreate {
   course_content_id: string;
   submission_group_id?: string;
   submission_artifact_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   result: number;
   grade?: number | null;
@@ -2587,6 +2992,17 @@ export interface ResultCreate {
   version_identifier: string;
   reference_version_identifier?: string | null;
   status: TaskStatus;
+}
+
+/**
+ * Artifact information embedded in ResultGet.
+ */
+export interface ResultArtifactInfo {
+  id: string;
+  filename: string;
+  content_type?: string | null;
+  file_size: number;
+  created_at?: string | null;
 }
 
 export interface ResultGet {
@@ -2602,7 +3018,7 @@ export interface ResultGet {
   course_content_type_id: string;
   submission_group_id?: string | null;
   submission_artifact_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   result: number;
   grade?: number | null;
@@ -2612,6 +3028,9 @@ export interface ResultGet {
   reference_version_identifier?: string | null;
   status: TaskStatus;
   grading_ids?: string[] | null;
+  has_artifacts?: boolean;
+  artifact_count?: number;
+  result_artifacts?: ResultArtifactInfo[];
 }
 
 export interface ResultList {
@@ -2625,13 +3044,15 @@ export interface ResultList {
   course_content_type_id: string;
   submission_group_id?: string | null;
   submission_artifact_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   result: number;
   grade?: number | null;
   version_identifier: string;
   reference_version_identifier?: string | null;
   status: TaskStatus;
+  has_artifacts?: boolean;
+  artifact_count?: number;
 }
 
 export interface ResultUpdate {
@@ -2653,7 +3074,7 @@ export interface ResultQuery {
   course_content_type_id?: string | null;
   submission_group_id?: string | null;
   submission_artifact_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   version_identifier?: string | null;
   status?: TaskStatus | null;
@@ -2678,7 +3099,7 @@ export interface ResultWithGrading {
   course_content_type_id: string;
   submission_group_id?: string | null;
   submission_artifact_id?: string | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   result: number;
   grade?: number | null;
@@ -2688,6 +3109,9 @@ export interface ResultWithGrading {
   reference_version_identifier?: string | null;
   status: TaskStatus;
   grading_ids?: string[] | null;
+  has_artifacts?: boolean;
+  artifact_count?: number;
+  result_artifacts?: ResultArtifactInfo[];
   latest_grading?: any | null;
   grading_count?: number;
 }
@@ -2797,6 +3221,86 @@ export interface GitCommit {
   author: string;
 }
 
+/**
+ * Credentials for GitLab Personal Access Token authentication.
+ */
+export interface GitLabPATCredentials {
+  /** GitLab Personal Access Token (glpat-...) */
+  access_token: string;
+  /** GitLab instance URL (e.g., https://gitlab.com) */
+  gitlab_url: string;
+}
+
+/**
+ * Request to set password for first time or after reset.
+ * 
+ * Can authenticate either via:
+ * 1. Bearer token (user already authenticated)
+ * 2. Provider credentials (e.g., GitLab PAT for users without password)
+ */
+export interface SetPasswordRequest {
+  /** New password (min 12 chars) */
+  new_password: string;
+  /** Confirm new password */
+  confirm_password: string;
+  /** Alternative authentication via external provider (for users without password) */
+  provider_auth?: ProviderAuthCredentials | null;
+}
+
+/**
+ * Request to change user's own password.
+ */
+export interface ChangePasswordRequest {
+  /** Current password */
+  old_password: string;
+  /** New password (min 12 chars) */
+  new_password: string;
+  /** Confirm new password */
+  confirm_password: string;
+}
+
+/**
+ * Admin request to set another user's password.
+ */
+export interface AdminSetPasswordRequest {
+  /** Target username */
+  username: string;
+  /** New password (min 12 chars) */
+  new_password: string;
+  /** Confirm new password */
+  confirm_password: string;
+  /** Require user to change password on next login */
+  force_reset?: boolean;
+}
+
+/**
+ * Admin request to reset a user's password (marks for reset).
+ */
+export interface AdminResetPasswordRequest {
+  /** Target username */
+  username: string;
+}
+
+/**
+ * Response showing password status for a user.
+ */
+export interface PasswordStatusResponse {
+  user_id: string;
+  username: string;
+  has_password: boolean;
+  password_reset_required: boolean;
+  password_type: string;
+}
+
+/**
+ * Generic response for password operations.
+ */
+export interface PasswordOperationResponse {
+  message: string;
+  user_id: string;
+  username: string;
+}
+
 export interface ProfileCreate {
   /** Associated user ID */
   user_id: string;
@@ -2888,6 +3392,8 @@ export interface ProfileQuery {
   user_id?: string | null;
   /** Filter by nickname */
   nickname?: string | null;
+  /** Filter by language code */
+  language_code?: string | null;
 }
 
 /**
@@ -2941,6 +3447,7 @@ export interface TutorGradeResponse {
   result_count: number;
   submission_count: number;
   max_test_runs?: number | null;
+  testing_service_id?: string | null;
   directory?: string | null;
   color: string;
   result?: ResultStudentList | null;
@@ -2948,6 +3455,9 @@ export interface TutorGradeResponse {
   unread_message_count?: number;
   deployment?: CourseContentDeploymentList | null;
   has_deployment?: boolean | null;
+  status?: string | null;
+  unreviewed_count?: number;
+  latest_grade_status?: string | null;
   graded_artifact_id?: string | null;
   graded_artifact_info?: GradedArtifactInfo | null;
 }
@@ -2958,7 +3468,7 @@ export interface TutorGradeResponse {
 export interface ContentValidationItem {
   /** UUID of course content */
   content_id: string;
-  /** Example identifier/slug from meta.yaml */
+  /** Example identifier/slug from meta.yaml (dot-separated ltree path) */
   example_identifier: string;
   /** Version tag from meta.yaml (e.g., '1.0.0') */
   version_tag: string;
@@ -3294,7 +3804,6 @@ export interface SubmissionGroupMemberGet {
   updated_by?: string | null;
   id: string;
   course_id: string;
-  course_content_id: string;
   course_member_id: string;
   submission_group_id: string;
   grading?: number | null;
@@ -3305,7 +3814,6 @@ export interface SubmissionGroupMemberGet {
 export interface SubmissionGroupMemberList {
   id: string;
   course_id: string;
-  course_content_id: string;
   course_member_id: string;
   submission_group_id: string;
   grading?: number | null;
@@ -3349,10 +3857,12 @@ export type LanguageEnum = "de" | "en";
 
 export type MetaTypeEnum = "course" | "unit" | "assignment";
 
+export type ForceLevel = "none" | "old" | "all";
+
 export type ErrorSeverity = "info" | "warning" | "error" | "critical";
 
 export type ErrorCategory = "authentication" | "authorization" | "validation" | "not_found" | "conflict" | "rate_limit" | "external_service" | "database" | "internal" | "not_implemented";
 
 export type GradingStatus = 0 | 1 | 2 | 3;
 
-export type ErrorCode = "AUTH_001" | "AUTH_002" | "AUTH_003" | "AUTH_004" | "AUTHZ_001" | "AUTHZ_002" | "AUTHZ_003" | "AUTHZ_004" | "VAL_001" | "VAL_002" | "VAL_003" | "VAL_004" | "NF_001" | "NF_002" | "NF_003" | "NF_004" | "CONFLICT_001" | "CONFLICT_002" | "RATE_001" | "RATE_002" | "RATE_003" | "CONTENT_001" | "CONTENT_002" | "CONTENT_003" | "CONTENT_004" | "CONTENT_005" | "DEPLOY_001" | "DEPLOY_002" | "DEPLOY_003" | "DEPLOY_004" | "SUBMIT_001" | "SUBMIT_002" | "SUBMIT_003" | "SUBMIT_004" | "SUBMIT_005" | "SUBMIT_006" | "SUBMIT_007" | "SUBMIT_008" | "TASK_001" | "TASK_002" | "TASK_003" | "TASK_004" | "EXT_001" | "EXT_002" | "EXT_003" | "EXT_004" | "DB_001" | "DB_002" | "DB_003" | "INT_001" | "INT_002" | "NIMPL_001";
+export type ErrorCode = "AUTH_001" | "AUTH_002" | "AUTH_003" | "AUTH_004" | "AUTHZ_001" | "AUTHZ_002" | "AUTHZ_003" | "AUTHZ_004" | "AUTHZ_005" | "VAL_001" | "VAL_002" | "VAL_003" | "VAL_004" | "NF_001" | "NF_002" | "NF_003" | "NF_004" | "CONFLICT_001" | "CONFLICT_002" | "RATE_001" | "RATE_002" | "RATE_003" | "CONTENT_001" | "CONTENT_002" | "CONTENT_003" | "CONTENT_004" | "CONTENT_005" | "VERSION_001" | "DEPLOY_001" | "DEPLOY_002" | "DEPLOY_003" | "DEPLOY_004" | "SUBMIT_001" | "SUBMIT_002" | "SUBMIT_003" | "SUBMIT_004" | "SUBMIT_005" | "SUBMIT_006" | "SUBMIT_007" | "SUBMIT_008" | "TASK_001" | "TASK_002" | "TASK_003" | "TASK_004" | "GITLAB_001" | "GITLAB_002" | "GITLAB_003" | "GITLAB_004" | "GITLAB_005" | "GITLAB_006" | "GITLAB_007" | "GITLAB_008" | "EXT_001" | "EXT_002" | "EXT_003" | "EXT_004" | "EXT_005" | "DB_001" | "DB_002" | "DB_003" | "INT_001" | "INT_002" | "NIMPL_001";

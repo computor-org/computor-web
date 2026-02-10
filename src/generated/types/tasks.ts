@@ -66,16 +66,34 @@ export interface TaskInfo {
   history_length?: number | null;
 }
 
+/**
+ * Task tracking entry stored in Redis for permission-aware task access.
+ * 
+ * This model stores permission-relevant metadata about tasks, allowing
+ * non-admin users to query tasks they have access to.
+ */
+export interface TaskTrackerEntry {
+  workflow_id: string;
+  task_name: string;
+  created_at: string;
+  created_by: string;
+  user_id?: string | null;
+  course_id?: string | null;
+  organization_id?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  description?: string | null;
+}
+
 export interface TestJob {
   user_id: string;
   course_member_id: string;
   course_content_id: string;
-  execution_backend_id: string;
-  execution_backend_type: string;
+  testing_service_id: string;
+  testing_service_slug: string;
+  testing_service_type_path: string;
   module: Repository;
   reference?: Repository | null;
-  test_number?: number;
-  submission_number?: number;
 }
 
 /**

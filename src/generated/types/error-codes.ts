@@ -2,7 +2,7 @@
  * Auto-generated error code definitions
  *
  * DO NOT EDIT MANUALLY
- * Generated at: 2025-10-20T13:01:24.094740
+ * Generated at: 2026-02-06T19:42:54.194756
  *
  * To regenerate: bash generate_error_codes.sh
  */
@@ -69,6 +69,7 @@ export const ErrorCodes = {
   AUTHZ_002: "AUTHZ_002", // Admin Access Required
   AUTHZ_003: "AUTHZ_003", // Course Access Denied
   AUTHZ_004: "AUTHZ_004", // Insufficient Course Role
+  AUTHZ_005: "AUTHZ_005", // Role Escalation Denied
   VAL_001: "VAL_001", // Invalid Request Data
   VAL_002: "VAL_002", // Missing Required Field
   VAL_003: "VAL_003", // Invalid Field Format
@@ -87,6 +88,7 @@ export const ErrorCodes = {
   CONTENT_003: "CONTENT_003", // Invalid Content Type Operation
   CONTENT_004: "CONTENT_004", // Example Not Found
   CONTENT_005: "CONTENT_005", // Example Version Not Found
+  VERSION_001: "VERSION_001", // Example Version Already Exists
   DEPLOY_001: "DEPLOY_001", // Assignment Not Released
   DEPLOY_002: "DEPLOY_002", // Deployment Not Found
   DEPLOY_003: "DEPLOY_003", // Repository Not Configured
@@ -103,10 +105,19 @@ export const ErrorCodes = {
   TASK_002: "TASK_002", // Task Submission Failed
   TASK_003: "TASK_003", // Unsupported Execution Backend
   TASK_004: "TASK_004", // Course Membership Not Found
+  GITLAB_001: "GITLAB_001", // GitLab Not Configured
+  GITLAB_002: "GITLAB_002", // GitLab Account Not Registered
+  GITLAB_003: "GITLAB_003", // GitLab Token Mismatch
+  GITLAB_004: "GITLAB_004", // GitLab Account Already Linked
+  GITLAB_005: "GITLAB_005", // GitLab Token Required
+  GITLAB_006: "GITLAB_006", // GitLab Token Invalid
+  GITLAB_007: "GITLAB_007", // GitLab API Unreachable
+  GITLAB_008: "GITLAB_008", // Invalid GitLab Username
   EXT_001: "EXT_001", // GitLab Service Unavailable
   EXT_002: "EXT_002", // GitLab Authentication Failed
   EXT_003: "EXT_003", // MinIO Service Unavailable
   EXT_004: "EXT_004", // Temporal Service Unavailable
+  EXT_005: "EXT_005", // Task Queue Unavailable
   DB_001: "DB_001", // Database Connection Failed
   DB_002: "DB_002", // Database Query Failed
   DB_003: "DB_003", // Transaction Failed
@@ -248,6 +259,20 @@ export const ERROR_DEFINITIONS: Record<string, ErrorDefinition> = {
     },
     retryAfter: undefined,
     documentationUrl: "/docs/permissions#course-roles",
+  },
+  AUTHZ_005: {
+    code: "AUTHZ_005",
+    httpStatus: 403,
+    category: ErrorCategory.AUTHORIZATION,
+    severity: ErrorSeverity.ERROR,
+    title: "Role Escalation Denied",
+    message: {
+      plain: "You cannot assign a role higher than your own.",
+      markdown: "**Role Escalation Denied**\n\nYou cannot assign the role '{target_role}'. Your role '{user_role}' can only assign roles at or below your privilege level.",
+      html: "<strong>Role Escalation Denied</strong><p>You cannot assign the role <code>{target_role}</code>. Your role <code>{user_role}</code> can only assign roles at or below your privilege level.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/permissions#role-assignment",
   },
   VAL_001: {
     code: "VAL_001",
@@ -501,6 +526,20 @@ export const ERROR_DEFINITIONS: Record<string, ErrorDefinition> = {
     retryAfter: undefined,
     documentationUrl: "/docs/api/examples#versions",
   },
+  VERSION_001: {
+    code: "VERSION_001",
+    httpStatus: 409,
+    category: ErrorCategory.CONFLICT,
+    severity: ErrorSeverity.WARNING,
+    title: "Example Version Already Exists",
+    message: {
+      plain: "This version already exists for this example.",
+      markdown: "**Example Version Already Exists**\n\nVersion `{version_tag}` already exists for this example. To update it, set `update_existing: true` in meta.yaml or use a different version tag.",
+      html: "<strong>Example Version Already Exists</strong><p>Version <code>{version_tag}</code> already exists for this example. To update it, set <code>update_existing: true</code> in meta.yaml or use a different version tag.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/api/examples#version-management",
+  },
   DEPLOY_001: {
     code: "DEPLOY_001",
     httpStatus: 404,
@@ -725,6 +764,118 @@ export const ERROR_DEFINITIONS: Record<string, ErrorDefinition> = {
     retryAfter: undefined,
     documentationUrl: "/docs/courses#enrollment",
   },
+  GITLAB_001: {
+    code: "GITLAB_001",
+    httpStatus: 400,
+    category: ErrorCategory.VALIDATION,
+    severity: ErrorSeverity.WARNING,
+    title: "GitLab Not Configured",
+    message: {
+      plain: "GitLab integration is not configured for this course.",
+      markdown: "**GitLab Not Configured**\n\nGitLab integration has not been set up for this course. Please contact your instructor.",
+      html: "<strong>GitLab Not Configured</strong><p>GitLab integration has not been set up for this course. Please contact your instructor.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab",
+  },
+  GITLAB_002: {
+    code: "GITLAB_002",
+    httpStatus: 400,
+    category: ErrorCategory.VALIDATION,
+    severity: ErrorSeverity.INFO,
+    title: "GitLab Account Not Registered",
+    message: {
+      plain: "You have not registered your GitLab account for this course.",
+      markdown: "**GitLab Account Not Registered**\n\nYou need to register your GitLab account to access course repositories. Please register via `/user/courses/{course_id}/register`.",
+      html: "<strong>GitLab Account Not Registered</strong><p>You need to register your GitLab account to access course repositories.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#registration",
+  },
+  GITLAB_003: {
+    code: "GITLAB_003",
+    httpStatus: 401,
+    category: ErrorCategory.AUTHENTICATION,
+    severity: ErrorSeverity.WARNING,
+    title: "GitLab Token Mismatch",
+    message: {
+      plain: "The GitLab access token does not match your registered account.",
+      markdown: "**GitLab Token Mismatch**\n\nThe access token you provided belongs to GitLab user `{actual_username}`, but your registered account is `{expected_username}`.",
+      html: "<strong>GitLab Token Mismatch</strong><p>The access token belongs to a different GitLab user than your registered account.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#tokens",
+  },
+  GITLAB_004: {
+    code: "GITLAB_004",
+    httpStatus: 409,
+    category: ErrorCategory.CONFLICT,
+    severity: ErrorSeverity.WARNING,
+    title: "GitLab Account Already Linked",
+    message: {
+      plain: "This GitLab username is already linked to another user.",
+      markdown: "**GitLab Account Already Linked**\n\nThe GitLab username `{username}` is already linked to another user account in this course.",
+      html: "<strong>GitLab Account Already Linked</strong><p>This GitLab username is already linked to another user account.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#registration",
+  },
+  GITLAB_005: {
+    code: "GITLAB_005",
+    httpStatus: 401,
+    category: ErrorCategory.AUTHENTICATION,
+    severity: ErrorSeverity.WARNING,
+    title: "GitLab Token Required",
+    message: {
+      plain: "A GitLab personal access token is required for this operation.",
+      markdown: "**GitLab Token Required**\n\nPlease provide your GitLab personal access token to register or validate your account. The token must have `api` scope.",
+      html: "<strong>GitLab Token Required</strong><p>Please provide your GitLab personal access token with <code>api</code> scope.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#tokens",
+  },
+  GITLAB_006: {
+    code: "GITLAB_006",
+    httpStatus: 502,
+    category: ErrorCategory.EXTERNAL_SERVICE,
+    severity: ErrorSeverity.ERROR,
+    title: "GitLab Token Invalid",
+    message: {
+      plain: "The GitLab access token is invalid or has been revoked.",
+      markdown: "**GitLab Token Invalid**\n\nThe GitLab access token you provided is invalid, expired, or has been revoked. Please generate a new token with `api` scope.",
+      html: "<strong>GitLab Token Invalid</strong><p>The GitLab access token is invalid, expired, or revoked. Please generate a new token.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#tokens",
+  },
+  GITLAB_007: {
+    code: "GITLAB_007",
+    httpStatus: 503,
+    category: ErrorCategory.EXTERNAL_SERVICE,
+    severity: ErrorSeverity.ERROR,
+    title: "GitLab API Unreachable",
+    message: {
+      plain: "Unable to connect to GitLab API. Please try again later.",
+      markdown: "**GitLab API Unreachable**\n\nUnable to connect to the GitLab API to verify your account. Please try again later.",
+      html: "<strong>GitLab API Unreachable</strong><p>Unable to connect to GitLab. Please try again later.</p>",
+    },
+    retryAfter: 60,
+    documentationUrl: "/docs/integrations/gitlab",
+  },
+  GITLAB_008: {
+    code: "GITLAB_008",
+    httpStatus: 400,
+    category: ErrorCategory.VALIDATION,
+    severity: ErrorSeverity.WARNING,
+    title: "Invalid GitLab Username",
+    message: {
+      plain: "The GitLab username format is invalid.",
+      markdown: "**Invalid GitLab Username**\n\nThe provided GitLab username is empty or has invalid format. Please provide a valid GitLab username.",
+      html: "<strong>Invalid GitLab Username</strong><p>Please provide a valid GitLab username.</p>",
+    },
+    retryAfter: undefined,
+    documentationUrl: "/docs/integrations/gitlab#registration",
+  },
   EXT_001: {
     code: "EXT_001",
     httpStatus: 503,
@@ -780,6 +931,20 @@ export const ERROR_DEFINITIONS: Record<string, ErrorDefinition> = {
     },
     retryAfter: 120,
     documentationUrl: "/docs/workflows",
+  },
+  EXT_005: {
+    code: "EXT_005",
+    httpStatus: 503,
+    category: ErrorCategory.EXTERNAL_SERVICE,
+    severity: ErrorSeverity.ERROR,
+    title: "Task Queue Unavailable",
+    message: {
+      plain: "No worker available for the specified task queue.",
+      markdown: "**Task Queue Unavailable**\n\nNo worker is available to process tasks on the specified queue. The testing service may be misconfigured or the worker is not running.",
+      html: "<strong>Task Queue Unavailable</strong><p>No worker is available to process tasks on the specified queue. The testing service may be misconfigured or the worker is not running.</p>",
+    },
+    retryAfter: 120,
+    documentationUrl: "/docs/testing-services",
   },
   DB_001: {
     code: "DB_001",
