@@ -10,7 +10,7 @@
 
 import type { GradingAuthor } from './auth';
 
-import type { ComputorDeploymentConfig, CourseContentDeploymentGet, CourseContentDeploymentList, CourseMemberGitLabConfig, GitLabConfig, GitLabConfigGet, GitLabCredentials, SubmissionGroupGradingList } from './common';
+import type { CourseContentDeploymentGet, CourseContentDeploymentList, CourseMemberGitLabConfig, GitLabConfig, GitLabConfigGet, GitLabCredentials, ResultArtifactInfo, SubmissionGroupGradingList } from './common';
 
 import type { OrganizationGet } from './organizations';
 
@@ -44,7 +44,7 @@ export interface CourseContentLecturerGet {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   is_submittable?: boolean;
   has_deployment?: boolean | null;
   deployment_status?: string | null;
@@ -68,7 +68,7 @@ export interface CourseContentLecturerList {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   is_submittable?: boolean;
   has_deployment?: boolean | null;
   deployment_status?: string | null;
@@ -94,7 +94,7 @@ export interface CourseContentLecturerQuery {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   /** Filter by whether content has a deployment */
   has_deployment?: boolean | null;
   directory?: string | null;
@@ -115,6 +115,40 @@ export interface CourseExecutionBackendConfig {
   version: string;
   /** Backend-specific settings */
   settings?: any | null;
+}
+
+/**
+ * Request for importing a course member.
+ */
+export interface CourseMemberImportRequest {
+  /** Email address (required) */
+  email: string;
+  /** First name */
+  given_name?: string | null;
+  /** Last name */
+  family_name?: string | null;
+  /** Course group name */
+  course_group_title?: string | null;
+  /** Course role ID (e.g., _student) */
+  course_role_id?: string;
+  /** Auto-create missing course group */
+  create_missing_group?: boolean;
+}
+
+/**
+ * Response from course member import.
+ */
+export interface CourseMemberImportResponse {
+  /** Whether the import was successful */
+  success: boolean;
+  /** Success or error message */
+  message?: string | null;
+  /** Created/updated course member */
+  course_member?: any | null;
+  /** Created course group if new */
+  created_group?: any | null;
+  /** Workflow ID for repository creation task (use GET /tasks/{workflow_id}/status to check progress) */
+  workflow_id?: string | null;
 }
 
 export interface CourseContentKindCreate {
@@ -248,7 +282,7 @@ export interface CourseContentCreate {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
 }
 
 /**
@@ -274,7 +308,7 @@ export interface CourseContentGet {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   is_submittable?: boolean;
   has_deployment?: boolean | null;
   deployment_status?: string | null;
@@ -299,7 +333,7 @@ export interface CourseContentList {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   is_submittable?: boolean;
   course_content_type?: CourseContentTypeList | null;
   /** Whether this content has an example deployment */
@@ -323,7 +357,7 @@ export interface CourseContentUpdate {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
 }
 
 /**
@@ -343,7 +377,7 @@ export interface CourseContentQuery {
   max_group_size?: number | null;
   max_test_runs?: number | null;
   max_submissions?: number | null;
-  execution_backend_id?: string | null;
+  testing_service_id?: string | null;
   /** DEPRECATED: Filter by example version ID */
   example_version_id?: string | null;
   /** Filter by whether content has a deployment */
@@ -352,7 +386,8 @@ export interface CourseContentQuery {
 
 export interface CourseTutorRepository {
   provider_url?: string | null;
-  full_path_reference?: string | null;
+  full_path_assignments?: string | null;
+  full_path_student_template?: string | null;
 }
 
 export interface CourseTutorGet {
@@ -465,6 +500,7 @@ export interface SubmissionGroupStudentList {
   repository?: SubmissionGroupRepository | null;
   status?: string | null;
   grading?: number | null;
+  graded_by_course_member?: GradedByCourseMember | null;
   count?: number;
   max_submissions?: number | null;
   unread_message_count?: number;
@@ -484,6 +520,7 @@ export interface SubmissionGroupStudentGet {
   repository?: SubmissionGroupRepository | null;
   status?: string | null;
   grading?: number | null;
+  graded_by_course_member?: GradedByCourseMember | null;
   count?: number;
   max_submissions?: number | null;
   unread_message_count?: number;
@@ -491,7 +528,8 @@ export interface SubmissionGroupStudentGet {
 }
 
 export interface ResultStudentList {
-  execution_backend_id?: string | null;
+  id: string;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   version_identifier?: string | null;
   status?: TaskStatus | null;
@@ -500,13 +538,15 @@ export interface ResultStudentList {
 }
 
 export interface ResultStudentGet {
-  execution_backend_id?: string | null;
+  id: string;
+  testing_service_id?: string | null;
   test_system_id?: string | null;
   version_identifier?: string | null;
   status?: TaskStatus | null;
   result?: number | null;
   submit?: boolean | null;
   result_json?: any | null;
+  result_artifacts?: ResultArtifactInfo[];
 }
 
 export interface CourseContentStudentProperties {
@@ -531,10 +571,11 @@ export interface CourseContentStudentGet {
   position: number;
   max_group_size?: number | null;
   submitted?: boolean | null;
-  course_content_types: CourseContentTypeGet;
+  course_content_type: CourseContentTypeGet;
   result_count: number;
   submission_count: number;
   max_test_runs?: number | null;
+  testing_service_id?: string | null;
   unread_message_count?: number;
   result?: ResultStudentGet | null;
   directory?: string | null;
@@ -542,6 +583,9 @@ export interface CourseContentStudentGet {
   submission_group?: SubmissionGroupStudentGet | null;
   deployment?: CourseContentDeploymentList | null;
   has_deployment?: boolean | null;
+  status?: string | null;
+  unreviewed_count?: number;
+  latest_grade_status?: string | null;
 }
 
 export interface CourseContentStudentList {
@@ -558,6 +602,7 @@ export interface CourseContentStudentList {
   result_count: number;
   submission_count: number;
   max_test_runs?: number | null;
+  testing_service_id?: string | null;
   directory?: string | null;
   color: string;
   result?: ResultStudentList | null;
@@ -565,6 +610,9 @@ export interface CourseContentStudentList {
   unread_message_count?: number;
   deployment?: CourseContentDeploymentList | null;
   has_deployment?: boolean | null;
+  status?: string | null;
+  unreviewed_count?: number;
+  latest_grade_status?: string | null;
 }
 
 export interface CourseContentStudentUpdate {
@@ -587,6 +635,155 @@ export interface CourseContentStudentQuery {
   nlevel?: number | null;
   descendants?: string | null;
   ascendants?: string | null;
+}
+
+/**
+ * Grading statistics for a specific course_content_type.
+ */
+export interface ContentTypeGradingStats {
+  course_content_type_id: string;
+  /** Slug of the content type (e.g., 'mandatory', 'optional') */
+  course_content_type_slug: string;
+  course_content_type_title?: string | null;
+  course_content_type_color?: string | null;
+  /** Total number of submittable course_contents of this type */
+  max_assignments: number;
+  /** Number of course_contents with at least one SubmissionArtifact.submit=True */
+  submitted_assignments: number;
+  /** Progress percentage (submitted/max * 100) */
+  progress_percentage: number;
+  /** Most recent SubmissionArtifact.created_at with submit=True for this type */
+  latest_submission_at?: string | null;
+  /** Count of assignments with at least one grading */
+  graded_assignments?: number | null;
+  /** Average grade for all graded assignments of this type (0.0-1.0 scale) */
+  average_grading?: number | null;
+}
+
+/**
+ * Aggregated grading data for one ltree path layer.
+ * 
+ * Represents a node in the course content hierarchy (e.g., a module, unit, etc.)
+ * with aggregated submission statistics for all submittable content at or below
+ * this path level.
+ */
+export interface CourseMemberGradingNode {
+  /** The ltree path (e.g., 'module1', 'module1.unit1') */
+  path: string;
+  /** CourseContent title if a course_content exists at this exact path */
+  title?: string | null;
+  /** Whether this node itself is submittable (True for assignments, False for units) */
+  submittable?: boolean | null;
+  /** Position/order of this content within its parent */
+  position?: number | null;
+  /** Color of the course content type (hex) */
+  course_content_type_color?: string | null;
+  /** Breakdown of statistics by course_content_type */
+  by_content_type?: ContentTypeGradingStats[];
+  /** Total submittable course_contents at or under this path */
+  max_assignments: number;
+  /** Course_contents with at least one SubmissionArtifact.submit=True */
+  submitted_assignments: number;
+  /** Progress percentage (submitted/max * 100) */
+  progress_percentage: number;
+  /** Most recent SubmissionArtifact.created_at with submit=True under this path */
+  latest_submission_at?: string | null;
+  /** For assignments: the actual grade (0.0-1.0 scale). None if not graded or not an assignment. */
+  grading?: number | null;
+  /** For units/containers: average of all descendant grades (0.0-1.0 scale). None if no graded descendants. */
+  average_grading?: number | null;
+  /** Count of graded assignments at or under this path */
+  graded_assignments?: number | null;
+  /** Grading status: 'not_reviewed', 'corrected', 'correction_necessary', or 'improvement_possible'. For units: aggregated from descendants. */
+  status?: string | null;
+  /** ID of the latest test result for this assignment */
+  latest_result_id?: string | null;
+  /** Grade from the latest test result (0.0-1.0 scale) */
+  latest_result_grade?: number | null;
+  /** Status of the latest test result (0=finished, 1=failed, 2=cancelled, etc.) */
+  latest_result_status?: number | null;
+  /** When the latest test result was created */
+  latest_result_created_at?: string | null;
+  /** Number of test runs used for this assignment */
+  test_runs_count?: number | null;
+  /** Maximum allowed test runs for this assignment (from course_content or submission_group) */
+  max_test_runs?: number | null;
+  /** Number of submissions made for this assignment */
+  submissions_count?: number | null;
+  /** Maximum allowed submissions for this assignment (from course_content or submission_group) */
+  max_submissions?: number | null;
+  /** Information about who graded this assignment (only for submittable nodes that have been graded) */
+  graded_by_course_member?: GradedByCourseMember | null;
+}
+
+/**
+ * Full response for course member gradings.
+ * 
+ * Contains overall course-level statistics, breakdown by content type,
+ * and hierarchical breakdown by ltree path.
+ */
+export interface CourseMemberGradingsGet {
+  course_member_id: string;
+  course_id: string;
+  user_id?: string | null;
+  username?: string | null;
+  given_name?: string | null;
+  family_name?: string | null;
+  /** Student ID from the student_profile belonging to the course's organization */
+  student_id?: string | null;
+  /** Total number of submittable course_contents in the course */
+  total_max_assignments: number;
+  /** Total course_contents with at least one submitted artifact */
+  total_submitted_assignments: number;
+  /** Overall progress percentage for the course */
+  overall_progress_percentage: number;
+  /** Most recent submission across all content */
+  latest_submission_at?: string | null;
+  /** Course-level average grade across all graded assignments (0.0-1.0 scale) */
+  overall_average_grading?: number | null;
+  /** Course-level breakdown by content type */
+  by_content_type?: ContentTypeGradingStats[];
+  /** Hierarchical breakdown by ltree path levels */
+  nodes?: CourseMemberGradingNode[];
+}
+
+/**
+ * List item for course member gradings (without hierarchical nodes for efficiency).
+ * 
+ * Used when listing all course members' gradings for a course.
+ * Contains only course-level totals, not the full hierarchical breakdown.
+ */
+export interface CourseMemberGradingsList {
+  course_member_id: string;
+  course_id: string;
+  user_id?: string | null;
+  username?: string | null;
+  given_name?: string | null;
+  family_name?: string | null;
+  /** Student ID from the student_profile belonging to the course's organization */
+  student_id?: string | null;
+  /** Total number of submittable course_contents in the course */
+  total_max_assignments: number;
+  /** Total course_contents with at least one submitted artifact */
+  total_submitted_assignments: number;
+  /** Overall progress percentage for the course */
+  overall_progress_percentage: number;
+  /** Most recent submission across all content */
+  latest_submission_at?: string | null;
+  /** Course-level average grade across all graded assignments (0.0-1.0 scale) */
+  overall_average_grading?: number | null;
+  /** Course-level breakdown by content type */
+  by_content_type?: ContentTypeGradingStats[];
+}
+
+/**
+ * Query parameters for course member gradings endpoint.
+ */
+export interface CourseMemberGradingsQuery {
+  skip?: number | null;
+  limit?: number | null;
+  /** Filter by course ID (required for list endpoint) */
+  course_id?: string | null;
 }
 
 export interface CourseFamilyProperties {
@@ -833,36 +1030,6 @@ export interface CourseQuery {
 }
 
 /**
- * DTO for releasing a course.
- */
-export interface ReleaseCourseCreate {
-  course_id?: string | null;
-  gitlab_url?: string | null;
-  descendants?: boolean | null;
-  deployment?: ComputorDeploymentConfig | null;
-}
-
-/**
- * DTO for releasing course content.
- */
-export interface ReleaseCourseContentCreate {
-  release_dir?: string | null;
-  course_id?: string | null;
-  gitlab_url?: string | null;
-  ascendants?: boolean;
-  descendants?: boolean;
-  deployment?: ComputorDeploymentConfig | null;
-}
-
-/**
- * DTO for updating course release.
- */
-export interface CourseReleaseUpdate {
-  course?: CourseUpdate | null;
-  course_content_types: CourseContentTypeCreate[];
-}
-
-/**
  * Request to create a course family via Temporal workflow.
  */
 export interface CourseFamilyTaskRequest {
@@ -1010,39 +1177,6 @@ export interface TutorCourseMemberList {
   course_role_id: string;
   unreviewed?: boolean | null;
   ungraded_submissions_count?: number | null;
+  unread_message_count?: number | null;
   user: UserList;
-}
-
-export interface CourseExecutionBackendCreate {
-  execution_backend_id: string;
-  course_id: string;
-  properties?: any | null;
-}
-
-export interface CourseExecutionBackendGet {
-  /** Creation timestamp */
-  created_at?: string | null;
-  /** Update timestamp */
-  updated_at?: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  execution_backend_id: string;
-  course_id: string;
-  properties?: any | null;
-}
-
-export interface CourseExecutionBackendList {
-  execution_backend_id: string;
-  course_id: string;
-}
-
-export interface CourseExecutionBackendUpdate {
-  properties?: any | null;
-}
-
-export interface CourseExecutionBackendQuery {
-  skip?: number | null;
-  limit?: number | null;
-  execution_backend_id?: string | null;
-  course_id?: string | null;
 }
