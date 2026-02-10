@@ -12,17 +12,39 @@ interface SubItem {
   path: string;
 }
 
-interface ViewNavItem {
+interface NavItem {
   id: string;
-  view: string;
   label: string;
   path: string;
   icon: string;
   subItems?: SubItem[];
+  /** Only used for course view navigation — matched against user's available views */
+  view?: string;
 }
 
+// Default navigation (when NOT in a course context)
+const defaultNavigation: NavItem[] = [
+  {
+    id: 'courses',
+    label: 'Courses',
+    path: '/courses',
+    icon: 'courses',
+  },
+  {
+    id: 'workspaces',
+    label: 'Workspaces',
+    path: '/workspaces',
+    icon: 'workspaces',
+    subItems: [
+      { id: 'ws-templates', label: 'Templates', path: '/workspaces/templates' },
+      { id: 'ws-provision', label: 'Provision', path: '/workspaces/provision' },
+      { id: 'ws-admin', label: 'Administration', path: '/workspaces/admin' },
+    ],
+  },
+];
+
 // Navigation structure for view-based navigation (when in course context)
-const getViewNavigation = (courseId: string): ViewNavItem[] => [
+const getViewNavigation = (courseId: string): NavItem[] => [
   {
     id: 'student-view',
     view: 'student',
@@ -59,6 +81,20 @@ const getViewNavigation = (courseId: string): ViewNavItem[] => [
     ],
   },
 ];
+
+/**
+ * Given a list of nav items and the current pathname, return which
+ * item IDs should be auto-expanded (pathname is inside a sub-item).
+ */
+function computeAutoExpanded(items: NavItem[], pathname: string): Record<string, boolean> {
+  const expanded: Record<string, boolean> = {};
+  for (const item of items) {
+    if (item.subItems && item.subItems.length > 0 && pathname.startsWith(item.path + '/')) {
+      expanded[item.id] = true;
+    }
+  }
+  return expanded;
+}
 
 const icons: Record<string, React.ReactElement> = {
   courses: (
@@ -104,7 +140,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, views } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>({});
+  const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>(() =>
+    computeAutoExpanded(defaultNavigation, pathname)
+  );
   const [courseViews, setCourseViews] = useState<string[]>([]);
 
   // Detect if we're in a course context
@@ -140,6 +178,30 @@ export default function Sidebar() {
     }
   }, [currentCourseId, views, user]);
 
+  // Auto-expand sidebar sections when navigating into a sub-page
+  useEffect(() => {
+    const items = currentCourseId
+      ? getViewNavigation(currentCourseId)
+      : defaultNavigation;
+
+    const autoExpanded = computeAutoExpanded(items, pathname);
+
+    // Merge: only set to true, never force-collapse something the user opened
+    if (Object.keys(autoExpanded).length > 0) {
+      setExpandedViews(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [key, val] of Object.entries(autoExpanded)) {
+          if (val && !prev[key]) {
+            next[key] = true;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [pathname, currentCourseId]);
+
   const toggleView = (viewId: string) => {
     setExpandedViews(prev => ({
       ...prev,
@@ -147,13 +209,80 @@ export default function Sidebar() {
     }));
   };
 
+  /** Render a list of nav items with expand/collapse sub-items */
+  const renderNavItems = (items: NavItem[]) =>
+    items.map((navItem) => {
+      const hasSubItems = navItem.subItems && navItem.subItems.length > 0;
+      const isExpanded = expandedViews[navItem.id];
+      const isExactActive = pathname === navItem.path;
+      const isChildActive = pathname.startsWith(navItem.path + '/');
+
+      return (
+        <div key={navItem.id} className="space-y-1">
+          <div className="flex items-center">
+            <Link
+              href={navItem.path}
+              className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                isExactActive
+                  ? 'bg-blue-50 text-blue-600'
+                  : isChildActive
+                  ? 'bg-blue-50/50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              title={collapsed ? navItem.label : undefined}
+            >
+              <span className={isExactActive || isChildActive ? 'text-blue-600' : 'text-gray-500'}>
+                {icons[navItem.icon]}
+              </span>
+              {!collapsed && (
+                <span className="text-sm font-medium">{navItem.label}</span>
+              )}
+            </Link>
+
+            {!collapsed && hasSubItems && (
+              <button
+                onClick={() => toggleView(navItem.id)}
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+              >
+                <span className={`transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}>
+                  {icons.chevronDown}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {!collapsed && isExpanded && navItem.subItems && (
+            <div className="ml-8 space-y-1">
+              {navItem.subItems.map((subItem) => {
+                const isSubActive = pathname === subItem.path || pathname.startsWith(subItem.path + '/');
+
+                return (
+                  <Link
+                    key={subItem.id}
+                    href={subItem.path}
+                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isSubActive
+                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {subItem.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    });
+
   // If we're in a course context, show view-based navigation
   if (currentCourseId) {
     const viewNavigation = getViewNavigation(currentCourseId);
     // Use course-specific views if available, otherwise fall back to global views
     const activeViews = courseViews.length > 0 ? courseViews : views;
     const availableViews = viewNavigation.filter((item) =>
-      activeViews.includes(item.view)
+      activeViews.includes(item.view!)
     );
 
     return (
@@ -200,75 +329,7 @@ export default function Sidebar() {
             {!collapsed && <span className="text-sm">Back to Courses</span>}
           </Link>
 
-          {availableViews.map((viewItem) => {
-            const isExpanded = expandedViews[viewItem.id];
-            const isViewActive = pathname.startsWith(viewItem.path);
-
-            return (
-              <div key={viewItem.id} className="space-y-1">
-                {/* Main View Item */}
-                <div className="flex items-center">
-                  <Link
-                    href={viewItem.path}
-                    className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                      pathname === viewItem.path
-                        ? 'bg-blue-50 text-blue-600'
-                        : isViewActive
-                        ? 'bg-blue-50/50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    title={collapsed ? viewItem.label : undefined}
-                  >
-                    <span className={pathname === viewItem.path || isViewActive ? 'text-blue-600' : 'text-gray-500'}>
-                      {icons[viewItem.icon]}
-                    </span>
-                    {!collapsed && (
-                      <span className="text-sm font-medium">{viewItem.label}</span>
-                    )}
-                  </Link>
-
-                  {/* Expand/Collapse Button */}
-                  {!collapsed && viewItem.subItems && viewItem.subItems.length > 0 && (
-                    <button
-                      onClick={() => toggleView(viewItem.id)}
-                      className="p-2 hover:bg-gray-100 rounded transition-colors"
-                    >
-                      <span
-                        className={`transition-transform inline-block ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
-                      >
-                        {icons.chevronDown}
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Sub Items */}
-                {!collapsed && isExpanded && viewItem.subItems && (
-                  <div className="ml-8 space-y-1">
-                    {viewItem.subItems.map((subItem) => {
-                      const isSubActive = pathname === subItem.path;
-
-                      return (
-                        <Link
-                          key={subItem.id}
-                          href={subItem.path}
-                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            isSubActive
-                              ? 'bg-blue-50 text-blue-600 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                          }`}
-                        >
-                          {subItem.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {renderNavItems(availableViews)}
         </nav>
 
         {/* Footer - Logo & Version */}
@@ -291,7 +352,7 @@ export default function Sidebar() {
     );
   }
 
-  // Default navigation - show "Courses" list
+  // Default navigation
   return (
     <aside
       className={`${
@@ -325,91 +386,7 @@ export default function Sidebar() {
 
       {/* Navigation - Main Items */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {/* Courses Item */}
-        <Link
-          href="/courses"
-          className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-            pathname === '/courses'
-              ? 'bg-blue-50 text-blue-600'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-          title={collapsed ? 'Courses' : undefined}
-        >
-          <span className={pathname === '/courses' ? 'text-blue-600' : 'text-gray-500'}>
-            {icons.courses}
-          </span>
-          {!collapsed && (
-            <span className="text-sm font-medium">Courses</span>
-          )}
-        </Link>
-
-        {/* Workspaces Item */}
-        <div className="space-y-1">
-          <div className="flex items-center">
-            <Link
-              href="/workspaces"
-              className={`flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                pathname === '/workspaces'
-                  ? 'bg-blue-50 text-blue-600'
-                  : pathname.startsWith('/workspaces')
-                  ? 'bg-blue-50/50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              title={collapsed ? 'Workspaces' : undefined}
-            >
-              <span className={pathname.startsWith('/workspaces') ? 'text-blue-600' : 'text-gray-500'}>
-                {icons.workspaces}
-              </span>
-              {!collapsed && (
-                <span className="text-sm font-medium">Workspaces</span>
-              )}
-            </Link>
-            {!collapsed && (
-              <button
-                onClick={() => toggleView('workspaces')}
-                className="p-2 hover:bg-gray-100 rounded transition-colors"
-              >
-                <span className={`transition-transform inline-block ${expandedViews['workspaces'] ? 'rotate-180' : ''}`}>
-                  {icons.chevronDown}
-                </span>
-              </button>
-            )}
-          </div>
-          {!collapsed && expandedViews['workspaces'] && (
-            <div className="ml-8 space-y-1">
-              <Link
-                href="/workspaces/templates"
-                className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/workspaces/templates'
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Templates
-              </Link>
-              <Link
-                href="/workspaces/provision"
-                className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/workspaces/provision'
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Provision
-              </Link>
-              <Link
-                href="/workspaces/admin"
-                className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                  pathname.startsWith('/workspaces/admin')
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Administration
-              </Link>
-            </div>
-          )}
-        </div>
+        {renderNavItems(defaultNavigation)}
       </nav>
 
       {/* Footer - Logo & Version */}
